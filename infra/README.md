@@ -34,3 +34,11 @@
     ```bash
     docker-compose down -v
     ```
+
+## Dockerfile'ы
+
+Dockerfile'ы для сборки образов сервисов находятся в директории `infra/docker/`:
+*   `infra/docker/backend/Dockerfile`: Для сборки образа бэкенд-приложения.
+*   `infra/docker/frontend/Dockerfile`: Для сборки образа фронтенд-приложения.
+
+Эти Dockerfile'ы используются в `docker-compose.yml` для локальной разработки и в CI/CD пайплайнах для сборки production-образов.

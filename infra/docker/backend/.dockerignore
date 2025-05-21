@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.git
+.gitignore
+.dockerignore
+README.md
+.pytest_cache/
+.mypy_cache/
+# Добавьте сюда другие файлы/папки, которые не нужны в образе
