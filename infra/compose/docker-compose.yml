@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:latest # Используем официальный образ MongoDB
+    container_name: scb_mongo
+    restart: always
+    ports:
+      - "27017:27017" # Пробрасываем стандартный порт MongoDB
+    volumes:
+      - mongo_data:/data/db # Именованный том для сохранения данных MongoDB
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME} # Берем из .env
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD} # Берем из .env
+    networks:
+      - scb_network
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest # Используем официальный образ ClickHouse
+    container_name: scb_clickhouse
+    restart: always
+    ports:
+      - "8123:8123" # HTTP интерфейс ClickHouse
+      - "9000:9000" # Нативный TCP интерфейс ClickHouse
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse # Именованный том для ClickHouse
+      # Опционально: можно смонтировать файл конфигурации, если нужны кастомные настройки
+      # - ./clickhouse_config/config.xml:/etc/clickhouse-server/config.xml
+      # - ./clickhouse_config/users.xml:/etc/clickhouse-server/users.xml
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER} # Берем из .env
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD} # Берем из .env
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-default} # Имя БД по умолчанию, если не задано в .env
+    ulimits: # Рекомендуемые ulimits для ClickHouse
+      nofile:
+        soft: 262144
+        hard: 262144
+    networks:
+      - scb_network
+
+volumes: # Определяем именованные тома
+  mongo_data:
+  clickhouse_data:
+
+networks: # Определяем пользовательскую сеть
+  scb_network:
+    driver: bridge

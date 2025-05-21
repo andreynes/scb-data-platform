@@ -97,3 +97,6 @@ cd scb-data-platform
     ```bash
     cd ..
     ```
+## 4. Запуск Базовых Сервисов (Docker Compose)" после раздела 
+
+Docker Compose используется для запуска БД
