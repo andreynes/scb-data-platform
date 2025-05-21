@@ -1,5 +1,5 @@
 # Этап 1: Базовый образ с Python и Poetry
-FROM python:3.10-slim as base
+FROM python:3.10-slim AS base
 
 # Устанавливаем переменные окружения
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -18,10 +18,10 @@ COPY ./backend/pyproject.toml ./backend/poetry.lock* /app/backend/
 # Устанавливаем зависимости проекта, не включая сам проект (no-root)
 # и не включая dev-зависимости для production-like окружения
 # Для разработки можно было бы убрать --no-dev, но для MVP оставим так
-RUN cd /app/backend && poetry install --no-root --no-dev --sync
+RUN cd /app/backend && poetry install --no-root --sync
 
 # Этап 2: Финальный образ
-FROM base as development
+FROM base AS development
 
 # Копируем остальной код приложения
 # Предполагается, что для разработки мы будем монтировать volume,
@@ -36,4 +36,4 @@ EXPOSE 8000
 
 # Команда для запуска приложения с Uvicorn и hot-reloading
 # Для production --reload нужно убрать
-CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
