@@ -1,47 +1,88 @@
-version: '3.8'
-
 services:
   mongo:
-    image: mongo:latest # Используем официальный образ MongoDB
+    image: mongo:latest
     container_name: scb_mongo
     restart: always
     ports:
-      - "27017:27017" # Пробрасываем стандартный порт MongoDB
+      - "27017:27017"
     volumes:
-      - mongo_data:/data/db # Именованный том для сохранения данных MongoDB
+      - mongo_data:/data/db
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME} # Берем из .env
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD} # Берем из .env
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     networks:
       - scb_network
 
   clickhouse:
-    image: clickhouse/clickhouse-server:latest # Используем официальный образ ClickHouse
+    image: clickhouse/clickhouse-server:latest
     container_name: scb_clickhouse
     restart: always
     ports:
-      - "8123:8123" # HTTP интерфейс ClickHouse
-      - "9000:9000" # Нативный TCP интерфейс ClickHouse
+      - "8123:8123"
+      - "9000:9000"
     volumes:
-      - clickhouse_data:/var/lib/clickhouse # Именованный том для ClickHouse
-      # Опционально: можно смонтировать файл конфигурации, если нужны кастомные настройки
-      # - ./clickhouse_config/config.xml:/etc/clickhouse-server/config.xml
-      # - ./clickhouse_config/users.xml:/etc/clickhouse-server/users.xml
+      - clickhouse_data:/var/lib/clickhouse
     environment:
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER} # Берем из .env
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD} # Берем из .env
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-default} # Имя БД по умолчанию, если не задано в .env
-    ulimits: # Рекомендуемые ulimits для ClickHouse
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-default}
+    ulimits:
       nofile:
         soft: 262144
         hard: 262144
     networks:
       - scb_network
 
-volumes: # Определяем именованные тома
+  backend:
+    build:
+      context: ../../ # Контекст сборки - корневая папка проекта
+      dockerfile: ./infra/docker/backend/Dockerfile # Путь к Dockerfile бэкенда
+    container_name: scb_backend
+    ports:
+      - "8000:8000" # Пробрасываем порт FastAPI
+    volumes:
+      # Монтируем локальный код бэкенда в контейнер для hot-reloading
+      # Путь слева от двоеточия - путь на вашей хост-машине относительно docker-compose.yml
+      # Путь справа - путь внутри контейнера, куда копировался код в Dockerfile
+      - ../../backend:/app/backend
+    env_file:
+      - .env # Загружаем переменные окружения (например, для подключения к БД)
+    depends_on: # Запускаем после БД
+      - mongo
+      - clickhouse
+    networks:
+      - scb_network
+    # Команда для запуска uvicorn с --reload уже указана в Dockerfile
+    # Если бы не была, можно было бы указать здесь:
+    # command: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/backend/app
+
+  frontend:
+    build:
+      context: ../../ # Контекст сборки - корневая папка проекта
+      dockerfile: ./infra/docker/frontend/Dockerfile # Путь к Dockerfile фронтенда
+    container_name: scb_frontend
+    ports:
+      - "5173:5173" # Пробрасываем порт Vite dev server
+    volumes:
+      # Монтируем локальный код фронтенда (кроме node_modules) для hot-reloading
+      - ../../frontend:/app
+      # Используем именованный том или просто исключаем node_modules из монтирования,
+      # чтобы использовать node_modules, установленные внутри контейнера
+      - /app/node_modules
+    env_file:
+      - .env # Могут быть переменные для VITE_API_BASE_URL, если они не берутся иначе
+    # depends_on: # Фронтенд может зависеть от бэкенда для API, но не всегда критично для запуска
+    #   - backend
+    networks:
+      - scb_network
+    # Команда для запуска Vite dev server с --host уже может быть в Dockerfile
+    # Если нет, можно указать здесь. --host важен для доступа извне контейнера.
+    # command: npm run dev -- --host
+
+volumes:
   mongo_data:
   clickhouse_data:
 
-networks: # Определяем пользовательскую сеть
+networks:
   scb_network:
     driver: bridge

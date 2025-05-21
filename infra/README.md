@@ -42,3 +42,7 @@ Dockerfile'ы для сборки образов сервисов находят
 *   `infra/docker/frontend/Dockerfile`: Для сборки образа фронтенд-приложения.
 
 Эти Dockerfile'ы используются в `docker-compose.yml` для локальной разработки и в CI/CD пайплайнах для сборки production-образов.
+
+## Docker-compose up теперь запускает также бэкенд и фронтенд.
+URLы для доступа к бэкенду (http://localhost:8000) и фронтенду (http://localhost:5173).
+Настроен hot-reloading.
