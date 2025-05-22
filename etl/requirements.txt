@@ -1,0 +1,7 @@
+# etl/requirements.txt
+pymongo
+pyyaml
+clickhouse-connect
+pandas
+openai
+# Добавьте другие зависимости ETL, если они появятся
