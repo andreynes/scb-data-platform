@@ -1,0 +1,30 @@
+version: "1.0"
+description: "Начальная простейшая версия онтологии для SCB DB."
+attributes:
+  - name: "indicator_name" # Техническое имя атрибута (колонки)
+    type: "string"        # Тип данных
+    description: "Наименование показателя" # Человекочитаемое описание
+    role: "dimension"     # Семантическая роль (измерение, показатель, метаданные)
+    # vocabulary: "indicators" # Опционально: ссылка на справочник, если есть
+
+  - name: "region"
+    type: "string"
+    description: "Регион"
+    role: "dimension"
+    vocabulary: "countries" # Ссылка на наш справочник стран
+
+  - name: "year"
+    type: "integer"
+    description: "Год наблюдения"
+    role: "dimension"
+
+  - name: "value"
+    type: "float" # Или Decimal для большей точности, если поддерживается
+    description: "Значение показателя"
+    role: "measure"     # Основное измеряемое значение
+    is_nullable: true   # Может ли быть NULL
+
+  - name: "source_file_id" # Пример метаданных
+    type: "string"
+    description: "ID исходного файла в ОЗЕРЕ"
+    role: "metadata"
