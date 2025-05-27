@@ -1,0 +1,6 @@
+FROM debian:bookworm-slim 
+# Используем тот же базовый образ, что и python:3.10-slim, но без Python
+
+RUN apt-get update -y && apt-get install -y curl
+
+CMD ["curl", "http://deb.debian.org"]

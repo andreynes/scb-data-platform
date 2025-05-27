@@ -3,9 +3,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from backend.app.db.session import connect_to_mongo, close_mongo_connection
-# from backend.app.api.v1.api import api_router_v1 # Раскомментируем, когда будет api_router_v1
-from backend.app.core.logging_config import setup_logging # Предполагаем, что это уже есть
+from app.db.session import connect_to_mongo, close_mongo_connection
+from app.api.v1.api import api_router_v1 as api_router_v1
+from app.core.logging_config import setup_logging 
 
 # Настройка логирования при старте
 setup_logging()
@@ -45,6 +45,6 @@ async def health_check():
     # Можно добавить проверку доступности БД
     return {"status": "ok"}
 
-# app.include_router(api_router_v1, prefix=settings.API_V1_STR) # Раскомментируем позже
+app.include_router(api_router_v1, prefix=settings.API_V1_STR) 
 
 logger.info("Application configured.")
