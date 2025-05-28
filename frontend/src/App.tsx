@@ -1,35 +1,28 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// frontend/src/App.tsx (или frontend/src/app/App.tsx)
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import { store } from './app/store'; // Предполагая, что store.ts в app/
+import { AppRouter } from './app/router'; // <-- ИМПОРТ AppRouter
+import { ConfigProvider, App as AntApp } from 'antd'; // AntApp для message, notification
+// import ruRU from 'antd/locale/ru_RU'; // Если нужна локализация AntD
+// import { antThemeConfig } from './styles/theme'; // Если есть тема
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <React.StrictMode>
+      <Provider store={store}>
+        {/* <ConfigProvider locale={ruRU} theme={antThemeConfig}> */}
+        <ConfigProvider> {/* Упрощенный ConfigProvider */}
+          <AntApp> {/* Обертка для message, notification, Modal.confirm из AntD */}
+            <BrowserRouter>
+              <AppRouter /> {/* <-- ИСПОЛЬЗОВАНИЕ AppRouter */}
+            </BrowserRouter>
+          </AntApp>
+        </ConfigProvider>
+      </Provider>
+    </React.StrictMode>
+  );
 }
 
-export default App
+export default App;
