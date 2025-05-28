@@ -4,7 +4,7 @@ from pymongo.database import Database # Используем синхронны�
 # Если вы планируете использовать Motor для асинхронности, импорт будет другим:
 # from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from backend.app.core.config import settings # Для имен коллекций
+from app.core.config import settings 
 
 # Имена коллекций можно вынести в конфигурацию или определить здесь
 ONTOLOGY_STATUS_COLLECTION = "ontology_status"

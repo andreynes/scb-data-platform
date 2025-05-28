@@ -2,12 +2,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Optional
 
-from backend.app.services.ontology_service import OntologyService
-from backend.app.schemas.ontology_schemas import OntologySchema
-from backend.app.api.v1.deps import get_ontology_service
+from app.services.ontology_service import OntologyService 
+from app.schemas.ontology_schemas import OntologySchema
+from app.api.v1.deps import get_ontology_service
 # Если эндпоинт будет защищен, раскомментируйте:
-# from backend.app.api.v1.deps import get_current_admin_user (или get_current_active_user)
-# from backend.app.schemas.user_schemas import UserSchema
+# from app.api.v1.deps import get_current_admin_user (или get_current_active_user)
+# from app.schemas.user_schemas import UserSchema
 
 router = APIRouter()
 

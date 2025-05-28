@@ -2,8 +2,8 @@
 from typing import Optional, Dict, Any
 from fastapi import Depends # Если будете использовать FastAPI Depends для внедрения репозитория
 
-from backend.app.repositories.ontology_repo import OntologyRepo
-from backend.app.schemas.ontology_schemas import OntologySchema # Pydantic модель для ответа
+from app.repositories.ontology_repo import OntologyRepo
+from app.schemas.ontology_schemas import OntologySchema 
 # Если репозиторий синхронный, а сервис асинхронный, может понадобиться run_in_threadpool
 # from fastapi.concurrency import run_in_threadpool
 
