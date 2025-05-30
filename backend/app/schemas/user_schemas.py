@@ -1,39 +1,38 @@
 # backend/app/schemas/user_schemas.py
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
+import uuid
 
-# Общие поля для пользователя, которые можно использовать в других схемах
-class UserBase(BaseModel):
-    email: Optional[EmailStr] = None
-    username: Optional[str] = None
-    full_name: Optional[str] = None
-    is_active: Optional[bool] = True
-    role: Optional[str] = "user" # Пример роли по умолчанию
-
-# Схема для создания нового пользователя (например, при регистрации)
-# Пароль здесь в открытом виде, так как он будет хэшироваться перед сохранением в БД
-class UserCreate(UserBase):
-    username: str
+# Базовая схема с общими полями
+class UserBaseSchema(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
-    password: str
+    full_name: Optional[str] = None
 
-# Схема для обновления пользователя (поля опциональны)
-class UserUpdate(UserBase):
-    password: Optional[str] = None # Если разрешено обновление пароля через этот эндпоинт
+# Схема для создания пользователя (принимается API)
+class UserCreateSchema(UserBaseSchema):
+    password: str = Field(..., min_length=8)
 
-# Базовая схема для пользователя, как он хранится в БД (включая ID)
-class UserInDBBase(UserBase):
-    id: Optional[int] = None # Или str/UUID, в зависимости от вашей БД
+# Схема для пользователя, хранящегося в БД (включая хэш пароля)
+# ЭТО И ЕСТЬ UserInDB или его база
+class UserInDBBase(UserBaseSchema):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4)
+    hashed_password: str
+    is_active: bool = True
+    role: str = "user"
 
     class Config:
-        # orm_mode = True # Для Pydantic v1
-        from_attributes = True # Для Pydantic v2, если модель создается из ORM объекта
+        from_attributes = True 
 
-# Схема для пользователя, как он хранится в БД, включая хэш пароля
-# Эта схема обычно не возвращается через API напрямую
-class UserInDB(UserInDBBase):
-    hashed_password: str
-
-# Схема для пользователя, возвращаемая через API (без пароля)
-class UserSchema(UserInDBBase):
+# Если ваш репозиторий ожидает именно UserInDB, вы можете сделать так:
+class UserInDB(UserInDBBase): # <<<--- ДОБАВЬТЕ ЭТОТ КЛАСС, ЕСЛИ ОН ИСПОЛЬЗУЕТСЯ ПО ИМЕНИ
     pass
+
+# Схема для пользователя, возвращаемая API (без пароля)
+class UserSchema(UserBaseSchema):
+    id: uuid.UUID
+    is_active: bool
+    role: str
+
+    class Config:
+        from_attributes = True
