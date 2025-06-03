@@ -1,5 +1,6 @@
 // frontend/src/app/store.ts
-import { configureStore, ThunkAction, Action } from '@reduxjs/toolkit';
+import * as RTK from '@reduxjs/toolkit';
+const { configureStore } = RTK; 
 
 // Импортируем редьюсеры из наших фич
 // Предполагается, что authSlice.ts уже существует или будет создан позже
