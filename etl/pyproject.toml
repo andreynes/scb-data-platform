@@ -1,31 +1,46 @@
 [tool.poetry]
 name = "etl"
 version = "0.1.0"
-description = ""
-authors = ["Andrew Krylov <89921337+andreynes@users.noreply.github.com>"] # <--- ИСПРАВЛЕНО ЗДЕСЬ
+description = "ETL processes for the SCB Data Platform" 
+authors = ["Andrew Krylov <89921337+andreynes@users.noreply.github.com>"]
 readme = "README.md"
 packages = [  
-    { include = "src" }, 
+    { include = "src", from = "." }, 
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4.0"
+python = ">=3.10,<4.0" # Отлично, соответствует версии в Docker
 
-pyyaml = ">=6.0.2,<7.0.0"
-python-dotenv = ">=1.1.0,<2.0.0"
-pandas = ">=2.2.3,<3.0.0"
-openpyxl = ">=3.1.5,<4.0.0"
-pdfplumber = ">=0.11.6,<0.12.0"
-pymongo = {extras = ["srv"], version = ">=4.3.0,<5.0.0"}
-# bson = ">=0.5.10,<0.6.0"
-# gridfs = ">=0.5.3,<0.6.0"
-clickhouse-connect = { version = "^0.8.17", python = ">=3.8, <4.0" }
+# Основные ETL зависимости
+pyyaml = ">=6.0.1,<7.0.0" 
+python-dotenv = ">=1.0.0,<2.0.0" 
+pandas = ">=2.2.0,<3.0.0" 
+openpyxl = ">=3.1.0,<4.0.0" 
+pdfplumber = ">=0.11.0,<0.12.0" 
+
+# Зависимости для баз данных
+pymongo = {extras = ["srv"], version = ">=4.6.0,<5.0.0"} 
+clickhouse-connect = { version = "^0.7.3", python = ">=3.8, <4.0" } 
+
+# Зависимость, из-за которой была ошибка в file_processing_dag.py
+pydantic-settings = "^2.0" 
+
+# Убедитесь, что Pydantic (если он нужен напрямую, а не только как зависимость FastAPI)
+# также указан, и его версия совместима с pydantic-settings.
+# Если FastAPI используется в ETL (маловероятно, но возможно для каких-то API), то Pydantic будет его зависимостью.
+# pydantic = "^2.0" # Пример, если нужен напрямую
+
+# Зависимости для Airflow (если они ставятся через Poetry, а не в базовом образе)
+# apache-airflow = "^2.8.1" # Пример, если бы вы управляли Airflow через Poetry
+# apache-airflow-providers-mongo = "^3.0" # Пример
+# apache-airflow-providers-clickhouse = "^1.0" # Пример
 
 [tool.poetry.group.dev.dependencies]
-# pytest = "^7.0"
+# pytest = "^7.0" # Раскомментируйте и добавьте актуальные версии, если будете писать тесты для ETL
 # pytest-mock = "^3.0"
-# ruff = "^0.1.0"
-# mypy = "^1.0"
+# mongomock = "^4.0" # Для мокирования MongoDB в тестах
+# ruff = "^0.1.0" # Линтер/форматтер
+# mypy = "^1.0" # Статический анализатор типов
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
