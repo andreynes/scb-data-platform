@@ -3,34 +3,62 @@ ARG AIRFLOW_VERSION=2.8.1
 ARG PYTHON_VERSION=3.10
 FROM apache/airflow:${AIRFLOW_VERSION}-python${PYTHON_VERSION}
 
-# Устанавливаем рабочую директорию Airflow
-WORKDIR /opt/airflow
+# Устанавливаем переменные окружения Airflow и Python
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV AIRFLOW_HOME=/opt/airflow
 
-# Устанавливаем переменные окружения
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Переключаемся на пользователя airflow (если еще не он)
+USER airflow
 
-# Копируем файл зависимостей ETL
-COPY ./etl/requirements.txt /requirements.txt
+# Устанавливаем Poetry для пользователя airflow
+RUN python -m pip install --user poetry==1.8.0
+ENV PATH="/home/airflow/.local/bin:${PATH}"
 
-# Важно: Устанавливаем зависимости от пользователя airflow
-# Базовый образ Airflow уже настроен на пользователя airflow
-# Если бы требовались системные пакеты (apt-get), то сначала USER root, потом USER airflow
-USER airflow 
-RUN pip install --user --no-cache-dir -r /requirements.txt
+# Создаем директорию для ETL проекта и его зависимостей (более явное создание)
+RUN mkdir -p /opt/airflow/etl_project/etl_src \
+    && mkdir -p /opt/airflow/dags \
+    && mkdir -p /opt/airflow/ontology_repo_local_clone
 
-# Копируем исходный код ETL (наши модули)
-# Эти файлы будут импортироваться в DAG'ах
-# Убедимся, что airflow имеет права на эти папки после копирования
-# Копируем от имени текущего пользователя (airflow)
-COPY --chown=airflow:airflow ./etl/src /opt/airflow/etl_src
+# Устанавливаем рабочую директорию для файлов зависимостей ETL
+WORKDIR /opt/airflow/etl_project
 
-# Копируем DAG'и
+# Диагностика: Проверяем, что директория создана
+RUN echo "Listing /opt/airflow/etl_project before copying poetry files:" \
+    && ls -la /opt/airflow/etl_project
+
+# Копируем файлы Poetry
+# Убедись, что эти пути ./etl/... корректны относительно контекста сборки
+COPY --chown=airflow:airflow ./etl/pyproject.toml ./etl/poetry.lock* /opt/airflow/etl_project/
+
+# Диагностика: Проверяем, что файлы скопированы
+RUN echo "Listing /opt/airflow/etl_project after copying poetry files:" \
+    && ls -la /opt/airflow/etl_project
+
+# Конфигурируем Poetry для создания venv в проекте
+RUN poetry config virtualenvs.in-project true
+
+# Устанавливаем зависимости ETL через Poetry
+RUN echo "Attempting poetry install..." \
+    && poetry install --no-interaction --no-ansi --no-root --sync \
+    && echo "Poetry install finished."
+
+# Диагностика: Проверяем, что .venv создан и содержит site-packages
+RUN echo "Listing .venv contents:" \
+    && ls -la /opt/airflow/etl_project/.venv/lib/python${PYTHON_VERSION}/site-packages/ \
+    || echo ".venv/lib/pythonX.Y/site-packages not found or empty"
+
+# Копируем исходный код ETL
+COPY --chown=airflow:airflow ./etl/src /opt/airflow/etl_project/etl_src
+
+# Копируем DAG'и в стандартную папку Airflow
 COPY --chown=airflow:airflow ./etl/dags /opt/airflow/dags
 
 # Копируем папку онтологии
 COPY --chown=airflow:airflow ./ontology /opt/airflow/ontology_repo_local_clone
 
-# Возвращаемся к root, если нужно для каких-то дальнейших команд, но обычно не требуется
-# USER root 
-# Если больше команд нет, можно оставить USER airflow
+# Устанавливаем PYTHONPATH
+ENV PYTHONPATH="/opt/airflow/etl_project/.venv/lib/python${PYTHON_VERSION}/site-packages:/opt/airflow/etl_project/etl_src:${PYTHONPATH}"
+
+# Возвращаемся в AIRFLOW_HOME
+WORKDIR /opt/airflow

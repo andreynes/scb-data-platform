@@ -2,10 +2,11 @@
 from typing import Dict, Any, Optional
 from pymongo.database import Database
 from pymongo.results import UpdateResult
-from datetime import datetime, timezone # Используем timezone-aware datetime
-from ...utils.logging_utils import setup_etl_logger # Наш логгер
+from pymongo.errors import ConnectionFailure, OperationFailure
+from datetime import datetime, timezone 
+import logging
 
-logger = setup_etl_logger(__name__)
+logger = logging.getLogger(__name__)
 
 def update_document_processing_status(
     mongo_db: Database,
@@ -17,17 +18,7 @@ def update_document_processing_status(
 ) -> bool:
     """
     Обновляет статус обработки документа и связанные метаданные в MongoDB.
-
-    Args:
-        mongo_db: Экземпляр pymongo.database.Database.
-        document_id: ID документа (обычно _id или document_id в коллекции метаданных).
-        status: Новый статус обработки документа.
-        error_message: Сообщение об ошибке, если статус - ошибка.
-        processing_details: Дополнительные детали процесса обработки.
-        raw_data_lake_collection_name: Имя коллекции метаданных.
-
-    Returns:
-        True, если документ был найден и обновлен, иначе False.
+    # ... (остальная часть docstring) ...
     """
     collection = mongo_db[raw_data_lake_collection_name]
     
@@ -39,45 +30,65 @@ def update_document_processing_status(
     if error_message:
         update_payload["error_message"] = error_message
     else:
-        # Если статус не ошибка, можно очистить предыдущее сообщение об ошибке
-        # update_payload["error_message"] = None # Или использовать $unset
-        pass # Для простоты пока оставим как есть, если нет новой ошибки
+        # Если статус не ошибка, и поле error_message существует, его нужно очистить
+        # Для этого используем $unset, если поле должно быть удалено,
+        # или устанавливаем в null, если поле всегда присутствует.
+        # Предположим, мы хотим его удалить, если ошибки нет.
+        pass # $unset будет добавлен ниже, если нужно
 
     if processing_details:
         update_payload["processing_details"] = processing_details
     
     logger.info(f"Updating status for doc_id '{document_id}' to '{status}' in collection '{raw_data_lake_collection_name}'.")
     
+    # Определение фильтра для поиска документа
+    filter_query: Dict[str, Any]
     try:
-        # Пытаемся найти по _id как ObjectId сначала, если document_id может быть таким
-        from bson import ObjectId, errors as bson_errors
+        from bson import ObjectId, errors as bson_errors # Импорт внутри, т.к. может не быть нужен всегда
         try:
             obj_id = ObjectId(document_id)
             filter_query = {"_id": obj_id}
         except bson_errors.InvalidId:
-            # Если не ObjectId, используем как строку для поля document_id или _id
-            filter_query = {"document_id": document_id} 
-            # Если у вас ID всегда в _id и он строковый, то: filter_query = {"_id": document_id}
-    except ImportError: # Если bson не установлен или не используется ObjectId
-         filter_query = {"document_id": document_id} # Или {"_id": document_id}
+            # Если document_id не является валидным ObjectId, ищем по другому полю
+            # или предполагаем, что _id может быть строкой
+            # Это зависит от того, как у вас хранятся ID.
+            # Для примера, если document_id это альтернативный ключ:
+            # filter_query = {"document_id_field": document_id}
+            # Или если _id может быть строкой:
+            filter_query = {"_id": document_id}
+    except ImportError:
+        # Если bson не доступен, предполагаем строковый ID
+        filter_query = {"_id": document_id} # Или {"document_id_field": document_id}
 
-    update_result: UpdateResult = collection.update_one(
-        filter_query,
-        {"$set": update_payload}
-    )
 
-    if update_result.matched_count > 0:
-        if update_result.modified_count > 0:
-            logger.info(f"Successfully updated status for doc_id '{document_id}'.")
+    # Формируем операцию обновления, включая $unset для error_message если его нет
+    update_operation: Dict[str, Any] = {"$set": update_payload}
+    if not error_message and status != 'Error': # Пример условия для очистки ошибки
+        update_operation["$unset"] = {"error_message": ""}
+
+
+    try:
+        update_result: UpdateResult = collection.update_one(
+            filter_query,
+            update_operation
+        )
+
+        if update_result.matched_count > 0:
+            if update_result.modified_count > 0:
+                logger.info(f"Successfully updated status for doc_id '{document_id}'.")
+            else:
+                logger.info(f"Document '{document_id}' found, but status was already '{status}' or no effective changes made to fields being set.")
+            return True
         else:
-            logger.info(f"Document '{document_id}' found, but status was already '{status}' (or no changes made).")
-        return True
-    else:
-        logger.warning(f"Document with id '{document_id}' not found for status update.")
+            logger.warning(f"Document with query '{filter_query}' not found for status update in collection '{raw_data_lake_collection_name}'.")
+            return False
+            
+    except (ConnectionFailure, OperationFailure) as db_op_error: # Более специфичные ошибки MongoDB
+        logger.error(f"MongoDB operation error updating document status for doc_id '{document_id}': {db_op_error}")
         return False
-except Exception as e:
-    logger.error(f"Error updating document status for doc_id '{document_id}': {e}")
-    return False
+    except Exception as e: # Общий обработчик других неожиданных ошибок
+        logger.error(f"Unexpected error updating document status for doc_id '{document_id}': {e}", exc_info=True)
+        return False
 
 if __name__ == '__main__':
     # Для локального теста нужен запущенный MongoDB и клиент

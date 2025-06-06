@@ -1,6 +1,6 @@
 # etl/src/transform/parsing/parser_orchestrator.py
 from typing import List, Dict, Any, Optional, Union
-from ..extract.mongo_extractor import get_json_representation_from_metadata # Для получения JSON из метаданных
+from etl_src.extract.mongo_extractor import get_json_representation_from_metadata 
 # Предполагаем, что get_original_file_content (если файлы не в JSON) будет в file_extractor
 # from ..extract.file_extractor import get_original_file_content 
 from .excel_parser import parse_excel_data
