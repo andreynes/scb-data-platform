@@ -7,11 +7,14 @@ const { configureStore } = RTK;
 // import authReducer from '../features/auth/authSlice'; // Пример для аутентификации
 import ontologyManagementReducer from '../features/ontologyManagement/ontologySlice';
 
+import dataExplorerReducer from '../features/dataExplorer/slice';
+
 export const store = configureStore({
   reducer: {
     // Здесь мы будем регистрировать все редьюсеры нашего приложения
     // auth: authReducer, // Пример
     ontologyManagement: ontologyManagementReducer,
+    dataExplorer: dataExplorerReducer, 
     // Добавьте другие редьюсеры здесь, когда они появятся
     // например: dataExplorer: dataExplorerReducer,
   },
