@@ -1,101 +1,126 @@
-// frontend/src/features/dataExplorer/slice.ts
-import * as RTK from '@reduxjs/toolkit'; 
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 
-const { createSlice, createAsyncThunk } = RTK;
-// Для PayloadAction будем использовать RTK.PayloadAction в типизации
-
-import * as dataApi from '../../services/dataApi'; // Импортируем наш сервисный файл для данных
+import * as dataApi from '../../services/dataApi';
 import type {
-    DataQuerySchema,
-    DataQueryResponseSchema,
-    // AtomicDataRow // Раскомментируйте, если нужен будет этот тип явно
-} from '../../services/generated'; 
-import type { RootState } from '../../app/store'; // Для типизации getState в Thunk, если понадобится
+  DataQuerySchema,
+  DataQueryResponseSchema,
+  ExportFormat,
+  ExportResponseSchema,
+} from '../../services/generated';
+import type { RootState } from '../../app/store';
 
 // Описываем состояние для фичи Исследователя Данных
 interface DataExplorerState {
-    currentQueryParams: DataQuerySchema | null; // Текущие параметры запроса (например, document_id)
-    queryResult: DataQueryResponseSchema | null; // Результат последнего запроса
-    isLoadingData: boolean; // Статус загрузки данных
-    errorData: string | null; // Ошибка загрузки данных
+  queryParams: DataQuerySchema; // Параметры всегда существуют
+  queryResult: DataQueryResponseSchema | null;
+  status: 'idle' | 'loading' | 'succeeded' | 'failed'; // Единый статус для запроса данных
+  error: string | null;
+
+  exportStatus: 'idle' | 'pending' | 'succeeded' | 'failed';
+  exportError: string | null;
 }
 
 const initialState: DataExplorerState = {
-    currentQueryParams: null,
-    queryResult: null,
-    isLoadingData: false,
-    errorData: null,
+  // Для MVP можно начать с пустого document_id
+  queryParams: { document_id: '' }, 
+  queryResult: null,
+  status: 'idle',
+  error: null,
+  exportStatus: 'idle',
+  exportError: null,
 };
 
 // Асинхронный Thunk для запроса данных из СКЛАДА
 export const fetchDataQueryThunk = createAsyncThunk<
-    DataQueryResponseSchema,    // Тип возвращаемых данных при успехе
-    DataQuerySchema,            // Тип аргумента Thunk'а (наши queryParams)
-    { rejectValue: string }      // Тип для ошибки (через rejectWithValue)
+  DataQueryResponseSchema,
+  void, // Не принимает аргументов, берет их из state
+  { state: RootState; rejectValue: string }
 >(
-    'dataExplorer/fetchData',     // Имя действия (featureName/thunkName)
-    async (queryParams, { rejectWithValue }) => {
-        try {
-            // Вызываем сервисную функцию, созданную на предыдущем шаге
-            const response = await dataApi.fetchDataForDocument(queryParams);
-            return response;
-        } catch (error: any) {
-            const errorMessage = 
-                error.response?.data?.detail || 
-                error.message ||                
-                'Failed to fetch data from warehouse';
-            return rejectWithValue(errorMessage);
-        }
+  'dataExplorer/fetchData',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const queryParams = getState().dataExplorer.queryParams;
+      const response = await dataApi.fetchDataForDocument(queryParams);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.detail || error.message || 'Failed to fetch data'
+      );
     }
+  }
 );
 
+// Асинхронный Thunk для экспорта данных
+export const exportDataThunk = createAsyncThunk<
+  ExportResponseSchema | void,
+  { format: ExportFormat },
+  { state: RootState; rejectValue: string }
+>(
+  'dataExplorer/exportData',
+  async ({ format }, { getState, rejectWithValue }) => {
+    try {
+      const queryParams = getState().dataExplorer.queryParams;
+      const response = await dataApi.startDataExport(queryParams, format);
+      return response;
+    } catch (error: any)      return rejectWithValue(
+        error.response?.data?.detail || error.message || 'Failed to start export'
+      );
+    }
+  }
+);
+
+
 const dataExplorerSlice = createSlice({
-    name: 'dataExplorer',
-    initialState,
-    reducers: {
-        // Синхронный action для установки/изменения параметров запроса
-        setQueryParams: (state, action: RTK.PayloadAction<DataQuerySchema>) => {
-            state.currentQueryParams = action.payload;
-            state.queryResult = null; 
-            state.isLoadingData = false;
-            state.errorData = null;
-        },
-        clearDataExplorerError: (state) => {
-            state.errorData = null;
-            if (state.isLoadingData && state.status === 'failed') { // Проверяем status, если он есть в вашем DataExplorerState
-                 state.isLoadingData = false; // или status = 'idle'
-            }
-        },
+  name: 'dataExplorer',
+  initialState,
+  reducers: {
+    setQueryParams: (state, action: PayloadAction<Partial<DataQuerySchema>>) => {
+      // Обновляем только часть параметров, не сбрасывая все
+      state.queryParams = { ...state.queryParams, ...action.payload };
     },
-    extraReducers: (builder) => {
-        builder
-            .addCase(fetchDataQueryThunk.pending, (state) => {
-                state.isLoadingData = true;
-                state.errorData = null;
-                state.queryResult = null;
-            })
-            .addCase(fetchDataQueryThunk.fulfilled, (state, action: RTK.PayloadAction<DataQueryResponseSchema>) => {
-                state.isLoadingData = false;
-                state.queryResult = action.payload;
-            })
-            .addCase(fetchDataQueryThunk.rejected, (state, action: RTK.PayloadAction<string | undefined>) => {
-                state.isLoadingData = false;
-                state.errorData = action.payload || 'An unknown error occurred while fetching data';
-            });
-    },
+    clearDataExplorerState: () => initialState, // Action для полного сброса
+  },
+  extraReducers: (builder) => {
+    builder
+      // Обработчики для fetchDataQueryThunk
+      .addCase(fetchDataQueryThunk.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(fetchDataQueryThunk.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.queryResult = action.payload;
+      })
+      .addCase(fetchDataQueryThunk.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload ?? 'Unknown error';
+      })
+      // Обработчики для exportDataThunk
+      .addCase(exportDataThunk.pending, (state) => {
+        state.exportStatus = 'pending';
+        state.exportError = null;
+      })
+      .addCase(exportDataThunk.fulfilled, (state) => {
+        state.exportStatus = 'succeeded';
+      })
+      .addCase(exportDataThunk.rejected, (state, action) => {
+        state.exportStatus = 'failed';
+        state.exportError = action.payload ?? 'Unknown error';
+      });
+  },
 });
 
 export const { 
     setQueryParams, 
-    clearDataExplorerError 
+    clearDataExplorerState 
 } = dataExplorerSlice.actions;
 
 // Селекторы
-export const selectCurrentQueryParams = (state: RootState): DataQuerySchema | null => state.dataExplorer.currentQueryParams;
-export const selectQueryResult = (state: RootState): DataQueryResponseSchema | null => state.dataExplorer.queryResult;
-export const selectIsLoadingData = (state: RootState): boolean => state.dataExplorer.isLoadingData;
-export const selectDataError = (state: RootState): string | null => state.dataExplorer.errorData;
-// Добавляем селектор для всего состояния фичи, если это нужно
-// export const selectDataExplorerState = (state: RootState): DataExplorerState => state.dataExplorer;
+export const selectQueryParams = (state: RootState) => state.dataExplorer.queryParams;
+export const selectQueryResult = (state: RootState) => state.dataExplorer.queryResult;
+export const selectDataQueryStatus = (state: RootState) => state.dataExplorer.status;
+export const selectDataQueryError = (state: RootState) => state.dataExplorer.error;
+export const selectExportStatus = (state: RootState) => state.dataExplorer.exportStatus;
+export const selectExportError = (state: RootState) => state.dataExplorer.exportError;
 
 export default dataExplorerSlice.reducer;

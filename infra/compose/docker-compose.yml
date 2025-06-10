@@ -1,6 +1,5 @@
 # infra/compose/docker-compose.yml
-version: '3.8'
-
+# СТРОКА 'version' УДАЛЕНА, Т.К. ОНА УСТАРЕЛА
 services:
   mongo:
     image: mongo:latest
@@ -21,14 +20,14 @@ services:
     container_name: scb_clickhouse
     restart: always
     ports:
-      - "8123:8123" # HTTP interface
-      - "9000:9000" # Native TCP interface
+      - "8123:8123"
+      - "9000:9000"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
     environment:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-default}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB_FOR_SCB_WAREHOUSE:-scb_warehouse}
     ulimits:
       nofile:
         soft: 262144
@@ -44,12 +43,14 @@ services:
       - "8000:8000"
     volumes:
       - ../../backend/app:/app/backend/app
+      - ../../scripts:/app/scripts
     env_file:
       - .env
     depends_on:
       - mongo
       - clickhouse
-    command: ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/backend/app"]
+    # ИЗМЕНЕНИЕ: Заменено `tail` на `uvicorn` для hot-reloading
+    command: poetry run uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/backend/app
     restart: unless-stopped
     networks:
       - scb_network
@@ -67,6 +68,8 @@ services:
       - /app/node_modules
     env_file:
       - .env
+    # ИЗМЕНЕНИЕ: Добавлена команда для запуска dev-сервера
+    command: npm run dev -- --host
     networks:
       - scb_network
     restart: unless-stopped
@@ -118,7 +121,6 @@ services:
       AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/1
       AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      # ИЗМЕНЕНИЕ PYTHONPATH для airflow-init
       PYTHONPATH: /opt/airflow/etl_project/.venv/lib/python3.10/site-packages:/opt/airflow/etl_project:/opt/airflow/dags:/opt/airflow/plugins
     depends_on:
       postgres:
@@ -148,13 +150,12 @@ services:
       AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__API__AUTH_BACKEND: "airflow.api.auth.backend.basic_auth"
-      # ИЗМЕНЕНИЕ PYTHONPATH
       PYTHONPATH: /opt/airflow/etl_project/.venv/lib/python3.10/site-packages:/opt/airflow/etl_project:/opt/airflow/dags:/opt/airflow/plugins
     ports:
       - "8080:8080"
     volumes:
       - ../../etl/dags:/opt/airflow/dags
-      - ../../etl/src:/opt/airflow/etl_project/etl_src # Оставляем для hot-reloading etl_src, если нужно
+      - ../../etl/src:/opt/airflow/etl_project/etl_src
       - ../../ontology:/opt/airflow/ontology_repo_local_clone
       - airflow_logs:/opt/airflow/logs
     depends_on:
@@ -190,7 +191,6 @@ services:
       AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/1
       AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      # ИЗМЕНЕНИЕ PYTHONPATH
       PYTHONPATH: /opt/airflow/etl_project/.venv/lib/python3.10/site-packages:/opt/airflow/etl_project:/opt/airflow/dags:/opt/airflow/plugins
     volumes:
       - ../../etl/dags:/opt/airflow/dags
@@ -232,7 +232,6 @@ services:
       AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/1
       AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      # ИЗМЕНЕНИЕ PYTHONPATH
       PYTHONPATH: /opt/airflow/etl_project/.venv/lib/python3.10/site-packages:/opt/airflow/etl_project:/opt/airflow/dags:/opt/airflow/plugins
     volumes:
       - ../../etl/dags:/opt/airflow/dags
@@ -261,6 +260,13 @@ volumes:
   airflow_postgres_data:
   airflow_logs:
 
+# --- ИСПРАВЛЕНИЕ СЕТИ ---
 networks:
   scb_network:
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.0.0/16
+    driver_opts:
+      com.docker.network.driver.mtu: 1400

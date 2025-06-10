@@ -41,5 +41,17 @@ class UserRepo:
         fake_user_data['hashed_password'] = hashed_password
         return UserInDB(**fake_user_data)
 
+    def get_user_by_username_sync(self, username: str) -> Optional[UserInDB]:
+        import asyncio
+        return asyncio.run(self.get_user_by_username(username))
+
+    def update_user_sync(self, user_id: str, data: dict) -> bool:
+        import asyncio
+        return asyncio.run(self.update_user(user_id, data))
+
+    def create_user_sync(self, user_in: UserCreateSchema, hashed_password: str) -> Optional[UserInDB]:
+        import asyncio
+        return asyncio.run(self.create_user(user_in, hashed_password))
+
 
     # Другие методы CRUD по необходимости (update_user, delete_user)
