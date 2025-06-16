@@ -4,7 +4,8 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from pydantic import ValidationError
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from clickhouse_connect.driver.client import AsyncClient as ClickHouseClient
+# Удаляем ненужный импорт AsyncClient отсюда
+# from clickhouse_connect.driver import AsyncClient as ClickHouseClient
 
 from app.core.config import settings
 from app.db.session import get_mongo_db, get_clickhouse_client
@@ -33,7 +34,8 @@ def get_data_lake_repo(db: AsyncIOMotorDatabase = Depends(get_mongo_db)) -> Data
     return DataLakeRepo(db=db)
 
 def get_warehouse_repo(
-    ch_client: ClickHouseClient = Depends(get_clickhouse_client)
+    # FastAPI сам поймет тип из функции get_clickhouse_client
+    ch_client = Depends(get_clickhouse_client)
 ) -> WarehouseRepo:
     return WarehouseRepo(ch_client=ch_client)
 
@@ -57,7 +59,6 @@ def get_data_query_service(
 def get_file_processing_service(
     data_lake_repo: DataLakeRepo = Depends(get_data_lake_repo)
 ) -> FileProcessingService:
-    # Примечание: airflow_client будет добавлен позже, если понадобится
     return FileProcessingService(data_lake_repo=data_lake_repo)
 
 # --- Зависимости для Аутентификации и Авторизации ---
@@ -90,7 +91,7 @@ async def get_current_active_user(
     current_user: UserSchema = Depends(get_current_user),
 ) -> UserSchema:
     if not current_user.is_active:
-        raise HTTPException(status_code=403, detail="Inactive user") # 403 Forbidden - более корректный статус
+        raise HTTPException(status_code=403, detail="Inactive user")
     return current_user
 
 async def get_current_admin_user(

@@ -1,82 +1,72 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { Input, Button, Card, Space, Alert, Row, Col, Typography } from 'antd';
-import { useAppDispatch, useAppSelector } from '../../../app/hooks';
-import {
-  fetchDataQueryThunk,
-  setQueryParams,
-  clearDataExplorerState, // Используем для полного сброса
-  selectQueryParams,
-  selectDataQueryStatus,
-  selectDataQueryError,
-} from '../slice';
-import { DataTable } from './DataTable'; // Импортируем наш основной компонент отображения
+// frontend/src/features/dataExplorer/components/QueryBuilder.tsx
 
-const { Text } = Typography;
+import React, { useEffect } from 'react';
+import { Card, Button, Spin, Alert, Row, Col, Space } from 'antd';
+import { useDataExplorer } from '../hooks/useDataExplorer';
+import DataTable from './DataTable'; // Мы создадим его на следующем шаге
 
 const QueryBuilder: React.FC = () => {
-  const dispatch = useAppDispatch();
+  // Получаем все необходимое из нашего нового хука
+  const {
+    queryParams,
+    setQueryParams, // Пока не используем, но понадобится для фильтров
+    executeQuery,
+    queryResult,
+    isLoading,
+    error,
+  } = useDataExplorer();
 
-  // Получаем состояние из Redux store
-  const queryParams = useAppSelector(selectQueryParams);
-  const status = useAppSelector(selectDataQueryStatus);
-  const error = useAppSelector(selectDataQueryError);
-
-  // Локальное состояние для поля ввода, синхронизированное с Redux
-  const [documentIdInput, setDocumentIdInput] = useState<string>(queryParams.document_id || '');
-
-  // Синхронизируем инпут, если ID документа меняется извне (например, при переходе по ссылке)
+  // Для примера, выполним запрос для первого документа при загрузке
+  // В будущем это будет делаться по действию пользователя
   useEffect(() => {
-    setDocumentIdInput(queryParams.document_id || '');
-  }, [queryParams.document_id]);
-  
-  const handleQuerySubmit = useCallback(() => {
-    const trimmedId = documentIdInput.trim();
-    if (trimmedId) {
-      // Сначала обновляем параметры в сторе, затем запускаем thunk, который их оттуда возьмет
-      dispatch(setQueryParams({ document_id: trimmedId }));
-      dispatch(fetchDataQueryThunk()); 
-    }
-  }, [dispatch, documentIdInput]);
+    // Устанавливаем ID документа для теста. В будущем это будет динамически.
+    // Используйте ID, который точно есть в вашей БД после выполнения ETL.
+    // Например, ID файла, который вы загружали для тестирования ETL.
+    const testDocumentId = "ID_ВАШЕГО_ТЕСТОВОГО_ДОКУМЕНТА"; // !!! ЗАМЕНИТЕ НА РЕАЛЬНЫЙ ID !!!
+    
+    setQueryParams({ document_id: testDocumentId });
+    
+    // Запускаем запрос автоматически для демонстрации
+    // executeQuery(); // Лучше сделать по кнопке, чтобы не было лишних запросов
+  }, []); // Пустой массив зависимостей, чтобы выполнилось один раз
 
-  // Сбрасываем состояние при размонтировании компонента
-  useEffect(() => {
-    return () => {
-      dispatch(clearDataExplorerState());
-    };
-  }, [dispatch]);
+
+  const handleQuerySubmit = () => {
+    executeQuery();
+  };
 
   return (
     <Row gutter={[16, 16]}>
-      {/* Панель запроса */}
       <Col xs={24} lg={8}>
-        <Card title="Параметры запроса (MVP)" bordered={false}>
+        <Card title="Параметры запроса" bordered={false}>
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Text>ID Документа</Text>
-            <Input
-              placeholder="Введите Document ID"
-              value={documentIdInput}
-              onChange={(e) => setDocumentIdInput(e.target.value)}
-              onPressEnter={handleQuerySubmit}
-              disabled={status === 'loading'} // Блокируем ввод во время загрузки
-            />
+            <p>Здесь будут фильтры и другие настройки.</p>
+            <p>Текущий документ: {queryParams.document_id || "не выбран"}</p>
             <Button
               type="primary"
               onClick={handleQuerySubmit}
-              loading={status === 'loading'} // Индикатор загрузки
-              disabled={!documentIdInput.trim()} // Кнопка неактивна, если поле пустое
+              loading={isLoading}
               block
             >
-              Запросить данные
+              Выполнить запрос
             </Button>
           </Space>
         </Card>
       </Col>
-
-      {/* Панель результатов */}
       <Col xs={24} lg={16}>
-        <Card title="Результаты из СКЛАДА" bordered={false}>
-          {/* DataTable теперь сам обрабатывает isLoading и error, получая их из стора */}
-          <DataTable />
+        <Card title="Результаты">
+          <Spin spinning={isLoading}>
+            {error && <Alert message="Ошибка запроса" description={error} type="error" showIcon />}
+            {queryResult && (
+              <DataTable
+                data={queryResult.data || []}
+                loading={isLoading}
+              />
+            )}
+            {!queryResult && !isLoading && !error && (
+              <div>Выполните запрос, чтобы увидеть результаты.</div>
+            )}
+          </Spin>
         </Card>
       </Col>
     </Row>

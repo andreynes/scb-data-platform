@@ -4,7 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.results import InsertOneResult # Для примера
 
 # Предполагаем, что у вас есть схема UserInDB для данных из БД
-from app.schemas.user_schemas import UserInDB, UserCreateSchema 
+from app.schemas.user_schemas import UserInDB, UserCreateSchema
 
 class UserRepo:
     def __init__(self, db: AsyncIOMotorDatabase):

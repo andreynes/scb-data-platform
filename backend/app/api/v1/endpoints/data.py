@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from backend.app.schemas.data_schemas import DataQuerySchema, DataQueryResponseSchema
-from backend.app.schemas.user_schemas import UserSchema
-from backend.app.services.data_query_service import DataQueryService
-from backend.app.api.v1.deps import get_current_active_user, get_data_query_service
+from app.schemas.data_schemas import DataQuerySchema, DataQueryResponseSchema
+from app.schemas.user_schemas import UserSchema
+from app.services.data_query_service import DataQueryService
+from app.api.v1.deps import get_current_active_user, get_data_query_service
 # import logging # Рекомендуется для логирования ошибок
 
 # logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(tags=["data"])
 
 @router.post(
     "/query",

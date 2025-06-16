@@ -6,14 +6,15 @@ import type {
   DataQueryResponseSchema,
   ExportFormat,
   ExportResponseSchema,
+  AtomicDataRow,
 } from '../../services/generated';
 import type { RootState } from '../../app/store';
 
 // Описываем состояние для фичи Исследователя Данных
 interface DataExplorerState {
-  queryParams: DataQuerySchema; // Параметры всегда существуют
+  queryParams: DataQuerySchema;
   queryResult: DataQueryResponseSchema | null;
-  status: 'idle' | 'loading' | 'succeeded' | 'failed'; // Единый статус для запроса данных
+  status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
 
   exportStatus: 'idle' | 'pending' | 'succeeded' | 'failed';
@@ -21,8 +22,7 @@ interface DataExplorerState {
 }
 
 const initialState: DataExplorerState = {
-  // Для MVP можно начать с пустого document_id
-  queryParams: { document_id: '' }, 
+  queryParams: { document_id: '' },
   queryResult: null,
   status: 'idle',
   error: null,
@@ -33,7 +33,7 @@ const initialState: DataExplorerState = {
 // Асинхронный Thunk для запроса данных из СКЛАДА
 export const fetchDataQueryThunk = createAsyncThunk<
   DataQueryResponseSchema,
-  void, // Не принимает аргументов, берет их из state
+  void,
   { state: RootState; rejectValue: string }
 >(
   'dataExplorer/fetchData',
@@ -58,31 +58,30 @@ export const exportDataThunk = createAsyncThunk<
 >(
   'dataExplorer/exportData',
   async ({ format }, { getState, rejectWithValue }) => {
+    // --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Добавлен недостающий блок try/catch ---
     try {
       const queryParams = getState().dataExplorer.queryParams;
       const response = await dataApi.startDataExport(queryParams, format);
       return response;
-    } catch (error: any)      return rejectWithValue(
+    } catch (error: any) {
+      return rejectWithValue(
         error.response?.data?.detail || error.message || 'Failed to start export'
       );
     }
   }
 );
 
-
 const dataExplorerSlice = createSlice({
   name: 'dataExplorer',
   initialState,
   reducers: {
     setQueryParams: (state, action: PayloadAction<Partial<DataQuerySchema>>) => {
-      // Обновляем только часть параметров, не сбрасывая все
       state.queryParams = { ...state.queryParams, ...action.payload };
     },
-    clearDataExplorerState: () => initialState, // Action для полного сброса
+    clearDataExplorerState: () => initialState,
   },
   extraReducers: (builder) => {
     builder
-      // Обработчики для fetchDataQueryThunk
       .addCase(fetchDataQueryThunk.pending, (state) => {
         state.status = 'loading';
         state.error = null;
@@ -95,7 +94,6 @@ const dataExplorerSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload ?? 'Unknown error';
       })
-      // Обработчики для exportDataThunk
       .addCase(exportDataThunk.pending, (state) => {
         state.exportStatus = 'pending';
         state.exportError = null;

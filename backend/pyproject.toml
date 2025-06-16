@@ -1,32 +1,46 @@
-# >>> ДОБАВЬТЕ ЭТУ СЕКЦИЮ <<<
 [tool.poetry]
 name = "backend"
 version = "0.1.0"
-description = "Backend service for SCB Data Platform" 
+description = "Backend service for SCB Data Platform"
 authors = ["Andrew Krylov <89921337+andreynes@users.noreply.github.com>"]
 readme = "README.md"
-packages = [{include = "app", from = "."}] 
+packages = [{include = "app", from = "."}]
 
 [tool.poetry.dependencies]
-python = ">=3.10"
-fastapi = ">=0.115.12,<0.116.0"
-uvicorn = {extras = ["standard"], version = ">=0.34.2,<0.35.0"}
-pydantic-settings = ">=2.9.1,<3.0.0" 
-motor = ">=3.7.1,<4.0.0"
-pydantic = {version = "^2.0", extras = ["email"]} 
-python-jose = {extras = ["cryptography"], version = "^3.3.0"} 
-passlib = {extras = ["bcrypt"], version = "^1.7.4"} 
-bcrypt = "3.2.0"
-python-multipart = "*" 
+python = "~3.10"
+
+# --- Core FastAPI & Server ---
+fastapi = "^0.111.0" # Используем более стабильную версию, если нет нужды в самой последней
+uvicorn = {version = "^0.29.0", extras = ["standard"], optional = true}
+pydantic = {version = "^2.7.1", extras = ["email"]}
+pydantic-settings = "^2.2.1"
+python-multipart = "^0.0.9" # Для загрузки файлов
+
+# --- Authentication ---
+python-jose = {version = "^3.3.0", extras = ["cryptography"]}
+passlib = {version = "^1.7.4", extras = ["bcrypt"]}
+# bcrypt не нужно указывать отдельно, passlib его подтянет
+
+# --- Databases ---
+motor = "^3.4.0" # MongoDB async driver
+clickhouse-connect = {version = "^0.8.17", extras = ["async"], optional = true}
+aiohttp = {version = "^3.9.5", optional = true} # Сделали опциональным
 
 [tool.poetry.group.dev.dependencies]
-mongomock-motor = { version = "^0.0.36", python = ">=3.10,<4.0" }
-pytest-asyncio = "^0.21.0" 
+mongomock-motor = "^0.0.36"
+pytest-asyncio = "^0.23.6"
 pytest-mock = "^3.14.1"
-# pytest = "^7.0" 
-# httpx = "^0.25.0" 
+pytest = "^8.2.0"
+httpx = "^0.27.0"
+
+# >>> ЭТО КЛЮЧЕВОЕ ИЗМЕНЕНИЕ <<<
+[tool.poetry.extras]
+# Мы создаем группу "async", в которую включаем пакеты,
+# необходимые для асинхронной работы и запуска сервера.
+# Теперь команда `poetry install -E async` будет работать.
+async = ["uvicorn", "clickhouse-connect", "aiohttp"]
+
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
-

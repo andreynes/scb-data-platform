@@ -1,38 +1,41 @@
 # backend/app/schemas/user_schemas.py
+
+import uuid  
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
-from uuid import UUID
+from pydantic import BaseModel, EmailStr
 
 # Базовая схема с общими полями
 class UserBaseSchema(BaseModel):
-    username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
+    username: str
     full_name: Optional[str] = None
-
-# Схема для создания пользователя (принимается API)
-class UserCreateSchema(UserBaseSchema):
-    password: str = Field(..., min_length=8)
-
-# Схема для пользователя, хранящегося в БД (включая хэш пароля)
-# ЭТО И ЕСТЬ UserInDB или его база
-class UserInDBBase(UserBaseSchema):
-    id: UUID = Field(alias='_id')
     is_active: bool = True
     role: str = "user"
 
+# Схема для создания нового пользователя (принимает пароль)
+class UserCreateSchema(UserBaseSchema):
+    password: str
+
+# Схема для обновления пользователя
+class UserUpdateSchema(BaseModel):
+    email: Optional[EmailStr] = None
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    password: Optional[str] = None
+    is_active: Optional[bool] = None
+    role: Optional[str] = None
+
+# Базовая схема для пользователя, как он хранится в БД (включает ID)
+class UserInDBBase(UserBaseSchema):
+    id: uuid.UUID  
+
     class Config:
         from_attributes = True
-        populate_by_name = True 
 
-# Если ваш репозиторий ожидает именно UserInDB, вы можете сделать так:
-class UserInDB(UserInDBBase): 
+# Схема для возврата данных пользователя через API (без пароля)
+class UserSchema(UserInDBBase):
+    pass
+
+# Полная схема пользователя в БД (включая хэш пароля)
+class UserInDB(UserInDBBase):
     hashed_password: str
-
-# Схема для пользователя, возвращаемая API (без пароля)
-class UserSchema(UserBaseSchema):
-    id: uuid.UUID
-    is_active: bool
-    role: str
-
-    class Config:
-        from_attributes = True

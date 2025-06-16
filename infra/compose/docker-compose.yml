@@ -1,10 +1,9 @@
-# infra/compose/docker-compose.yml
-# СТРОКА 'version' УДАЛЕНА, Т.К. ОНА УСТАРЕЛА
+version: '3.8'
+
 services:
   mongo:
     image: mongo:latest
     container_name: scb_mongo
-    restart: always
     ports:
       - "27017:27017"
     volumes:
@@ -12,22 +11,23 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    restart: always
     networks:
       - scb_network
 
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     container_name: scb_clickhouse
-    restart: always
     ports:
-      - "8123:8123"
-      - "9000:9000"
+      - "8123:8123" # Правильный HTTP порт для ClickHouse
+      - "9000:9000" # Правильный нативный порт для ClickHouse
     volumes:
       - clickhouse_data:/var/lib/clickhouse
     environment:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB_FOR_SCB_WAREHOUSE:-scb_warehouse}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+    restart: always
     ulimits:
       nofile:
         soft: 262144
@@ -35,26 +35,26 @@ services:
     networks:
       - scb_network
 
+  
   backend:
     build:
-      context: ../../
+      context: ../..
       dockerfile: infra/docker/backend/Dockerfile
+    container_name: scb_backend
     ports:
       - "8000:8000"
-    volumes:
-      - ../../backend/app:/app/backend/app
-      - ../../scripts:/app/scripts
+    # volumes: # Пока оставляем закомментированным для чистоты
+    #   - ../../backend/app:/app/app
     env_file:
       - .env
+    # Команда теперь не нужна, так как она жестко задана в Dockerfile
+    # command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       - mongo
       - clickhouse
-    # ИЗМЕНЕНИЕ: Заменено `tail` на `uvicorn` для hot-reloading
-    command: poetry run uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/backend/app
-    restart: unless-stopped
+    restart: always
     networks:
       - scb_network
-
   frontend:
     build:
       context: ../../
@@ -63,18 +63,16 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ../../frontend/src:/app/src
-      - ../../frontend/public:/app/public
+      - ../../frontend:/app
       - /app/node_modules
     env_file:
       - .env
-    # ИЗМЕНЕНИЕ: Добавлена команда для запуска dev-сервера
-    command: npm run dev -- --host
-    networks:
-      - scb_network
-    restart: unless-stopped
+    command: npm run dev -- --host # <-- Важный флаг для Vite
+    restart: always
     depends_on:
       - backend
+    networks:
+      - scb_network
 
   # --- Airflow Services ---
   postgres:
@@ -82,9 +80,9 @@ services:
     container_name: scb_airflow_postgres
     restart: always
     environment:
-      POSTGRES_USER: ${AIRFLOW_DB_USER:-airflow}
-      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow}
-      POSTGRES_DB: ${AIRFLOW_DB_NAME:-airflow}
+      POSTGRES_USER: ${POSTGRES_USER:-airflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
+      POSTGRES_DB: ${POSTGRES_DB:-airflow}
     volumes:
       - airflow_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -109,19 +107,11 @@ services:
 
   airflow-init:
     build:
-      context: ../../
+      context: ../..
       dockerfile: ./infra/docker/etl/Dockerfile
     container_name: scb_airflow_init
     env_file:
       - .env
-    environment:
-      AIRFLOW_UID: ${AIRFLOW_UID:-50000}
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/1
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      PYTHONPATH: /opt/airflow/etl_project/.venv/lib/python3.10/site-packages:/opt/airflow/etl_project:/opt/airflow/dags:/opt/airflow/plugins
     depends_on:
       postgres:
         condition: service_healthy
@@ -134,35 +124,18 @@ services:
 
   airflow-webserver:
     build:
-      context: ../../
+      context: ../..
       dockerfile: ./infra/docker/etl/Dockerfile
     container_name: scb_airflow_webserver
     restart: always
     env_file:
       - .env
-    environment:
-      AIRFLOW_UID: ${AIRFLOW_UID:-50000}
-      MONGO_DB_URL: ${MONGO_DB_URL}
-      MONGO_DB_NAME: ${MONGO_DB_NAME}
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/1
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      AIRFLOW__API__AUTH_BACKEND: "airflow.api.auth.backend.basic_auth"
-      PYTHONPATH: /opt/airflow/etl_project/.venv/lib/python3.10/site-packages:/opt/airflow/etl_project:/opt/airflow/dags:/opt/airflow/plugins
     ports:
       - "8080:8080"
     volumes:
-      - ../../etl/dags:/opt/airflow/dags
-      - ../../etl/src:/opt/airflow/etl_project/etl_src
-      - ../../ontology:/opt/airflow/ontology_repo_local_clone
+      - ../../etl/dags:/opt/airflow/dags # Обновил путь для консистентности
       - airflow_logs:/opt/airflow/logs
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
       airflow-init:
         condition: service_completed_successfully
     command: webserver
@@ -176,42 +149,19 @@ services:
 
   airflow-scheduler:
     build:
-      context: ../../
+      context: ../..
       dockerfile: ./infra/docker/etl/Dockerfile
     container_name: scb_airflow_scheduler
     restart: always
     env_file:
       - .env
-    environment:
-      AIRFLOW_UID: ${AIRFLOW_UID:-50000}
-      MONGO_DB_URL: ${MONGO_DB_URL}
-      MONGO_DB_NAME: ${MONGO_DB_NAME}
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/1
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      PYTHONPATH: /opt/airflow/etl_project/.venv/lib/python3.10/site-packages:/opt/airflow/etl_project:/opt/airflow/dags:/opt/airflow/plugins
     volumes:
-      - ../../etl/dags:/opt/airflow/dags
-      - ../../etl/src:/opt/airflow/etl_project/etl_src
-      - ../../ontology:/opt/airflow/ontology_repo_local_clone
+      - ../../etl/dags:/opt/airflow/dags # Обновил путь
       - airflow_logs:/opt/airflow/logs
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      airflow-init:
-        condition: service_completed_successfully
       airflow-webserver:
         condition: service_healthy
     command: scheduler
-    healthcheck:
-      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --limit 1 --local"]
-      interval: 30s
-      timeout: 30s
-      retries: 3
     networks:
       - scb_network
 
@@ -223,34 +173,13 @@ services:
     restart: always
     env_file:
       - .env
-    environment:
-      AIRFLOW_UID: ${AIRFLOW_UID:-50000}
-      MONGO_DB_URL: ${MONGO_DB_URL}
-      MONGO_DB_NAME: ${MONGO_DB_NAME}
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/1
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      PYTHONPATH: /opt/airflow/etl_project/.venv/lib/python3.10/site-packages:/opt/airflow/etl_project:/opt/airflow/dags:/opt/airflow/plugins
     volumes:
-      - ../../etl/dags:/opt/airflow/dags
-      - ../../etl/src:/opt/airflow/etl_project/etl_src
-      - ../../ontology:/opt/airflow/ontology_repo_local_clone
+      - ../../etl/dags:/opt/airflow/dags # Обновил путь
       - airflow_logs:/opt/airflow/logs
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
       airflow-scheduler:
-        condition: service_healthy
+        condition: service_started
     command: celery worker
-    healthcheck:
-      test: ["CMD-SHELL", "celery -A airflow.providers.celery.executors.celery_executor.app status || celery -A airflow.executors.celery_executor.app status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     networks:
       - scb_network
 
@@ -260,13 +189,6 @@ volumes:
   airflow_postgres_data:
   airflow_logs:
 
-# --- ИСПРАВЛЕНИЕ СЕТИ ---
 networks:
   scb_network:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.25.0.0/16
-    driver_opts:
-      com.docker.network.driver.mtu: 1400

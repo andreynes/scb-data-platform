@@ -1,32 +1,44 @@
 // frontend/src/services/dataApi.ts
-import {
-    DataService, // Пример имени сгенерированного сервиса
-    DataQuerySchema, // Схема запроса (содержит document_id)
-    DataQueryResponseSchema // Схема ответа (содержит List[AtomicDataRow] и pagination)
-} from './generated'; // Предполагается, что это путь к вашим сгенерированным типам/сервисам
+
+// --- > ИЗМЕНЕНИЕ ЗДЕСЬ: Вместо 'DataService' импортируем 'DefaultService' и переименовываем < ---
+import { DefaultService as DataService, DataQuerySchema, DataQueryResponseSchema, ExportFormat } from './generated';
 
 /**
- * Запрашивает атомарные данные из СКЛАДА по ID документа.
- * @param queryParams - Параметры запроса, содержащие document_id.
- * @returns Promise с данными ответа или выбрасывает ошибку.
+ * Выполняет запрос данных к СКЛАДА.
+ * @param queryParams - Параметры запроса (фильтры, агрегации, и т.д.).
+ * @returns Promise, который разрешается объектом DataQueryResponseSchema.
+ * @throws Ошибку, если API возвращает ошибку.
  */
-export const fetchDataForDocument = async (
-    queryParams: DataQuerySchema
-): Promise<DataQueryResponseSchema> => {
-    try {
-        // Имя функции DataService.queryDataApiV1DataQueryPost может отличаться
-        // в зависимости от вашего operationId в OpenAPI спецификации.
-        // Проверьте сгенерированный код в services/generated/services/DataService.ts
-        const response = await DataService.queryDataApiV1DataQueryPost({
-            requestBody: queryParams // Сгенерированный клиент часто ожидает requestBody
-        });
-        return response;
-    } catch (error) {
-        console.error("Error fetching data for document:", error);
-        // Пробрасываем ошибку дальше, чтобы ее мог обработать Redux Thunk или хук
-        throw error;
-    }
+export const fetchDataQuery = async (queryParams: DataQuerySchema): Promise<DataQueryResponseSchema> => {
+  try {
+    // Вызов сгенерированной функции. Имя может отличаться, но обычно включает operationId.
+    const response = await DataService.queryDataApiV1DataQueryPost({
+      requestBody: queryParams,
+    });
+    return response;
+  } catch (error) {
+    console.error("Data query API error:", error);
+    throw error; // Пробрасываем ошибку для обработки в Redux Thunk
+  }
 };
 
-// TODO: В будущем здесь может быть функция для экспорта данных
-// export const startDataExport = async (...): Promise<...> => { ... };
+/**
+ * Инициирует асинхронный экспорт данных.
+ * @param queryParams - Параметры запроса для экспорта.
+ * @param format - Желаемый формат экспорта ('excel' или 'csv').
+ * @returns Promise, который может разрешаться объектом ExportResponseSchema или void.
+ */
+export const startDataExport = async (
+  queryParams: DataQuerySchema,
+  format: ExportFormat
+): Promise<void> => { // Для MVP возвращаем void, так как статус 202 не имеет тела
+  try {
+    await DataService.exportDataApiV1DataExportPost({
+      requestBody: queryParams,
+      format: format,
+    });
+  } catch (error) {
+    console.error("Data export API error:", error);
+    throw error;
+  }
+};

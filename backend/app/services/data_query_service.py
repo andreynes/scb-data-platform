@@ -1,7 +1,7 @@
 from typing import List, Optional
-from backend.app.repositories.warehouse_repo import WarehouseRepo
-from backend.app.schemas.data_schemas import DataQuerySchema, DataQueryResponseSchema, AtomicDataRow
-from backend.app.services.ontology_service import OntologyService # Мы создадим его позже, сейчас просто импортируем
+from app.repositories.warehouse_repo import WarehouseRepo
+from app.schemas.data_schemas import DataQuerySchema, DataQueryResponseSchema, AtomicDataRow
+from app.services.ontology_service import OntologyService # Мы создадим его позже, сейчас просто импортируем
 
 class DataQueryService:
     def __init__(self, warehouse_repo: WarehouseRepo, ontology_service: OntologyService):

@@ -1,28 +1,27 @@
-# Этап 1: Установка зависимостей
-FROM node:18-alpine AS deps
-# Используем Alpine для меньшего размера образа
+# --- Этап 1: Установка зависимостей (deps) ---
+FROM node:18-alpine as deps
 
 WORKDIR /app
 
 # Копируем package.json и lock-файл
-COPY ./frontend/package.json ./frontend/package-lock.json* ./frontend/yarn.lock* ./
-# Если используете yarn, замените package-lock.json* на yarn.lock
+COPY frontend/package.json frontend/package-lock.json* frontend/yarn.lock* ./
 
 # Устанавливаем зависимости
-# Если используете yarn, замените `npm ci` на `yarn install --frozen-lockfile`
 RUN npm ci
 
-# Этап 2: Образ для разработки
-FROM node:18-alpine AS development
+# --- Этап 2: Запуск в режиме разработки (development) ---
+FROM node:18-alpine
 
 WORKDIR /app
 
-# Копируем зависимости из предыдущего этапа
+# Копируем установленные зависимости с предыдущего этапа
 COPY --from=deps /app/node_modules ./node_modules
 
-# Копируем остальной код фронтенда
-COPY ./frontend /app
+# Копируем весь исходный код фронтенда
+COPY frontend ./
 
-# EXPOSE 5173 # Vite сам сообщит порт, на котором запустится
-# CMD ["npm", "run", "dev", "--", "--host"] # --host нужен, чтобы Vite был доступен извне контейнера
-CMD ["npm", "run", "dev", "--", "--host"]
+# Открываем порт, который использует Vite
+EXPOSE 5173
+
+# Команда по умолчанию для запуска dev-сервера
+CMD ["npm", "run", "dev"]
