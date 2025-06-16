@@ -9,7 +9,10 @@ from app.db.session import (
     close_mongo_connection,
     connect_to_clickhouse,
     close_clickhouse_connection,
+    get_mongo_db  # <--- ДОБАВЛЕН ИМПОРТ
 )
+# Импортируем репозиторий для инициализации
+from app.repositories.user_repo import UserRepo # <--- ДОБАВЛЕН ИМПОРТ
 from app.api.v1.api import api_router_v1 as api_router_v1
 from app.core.logging_config import setup_logging
 
@@ -28,9 +31,22 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup_event():
     logger.info("Application startup...")
-    # Подключаемся к обеим базам
+    # 1. Подключаемся к обеим базам
     await connect_to_mongo()
-    await connect_to_clickhouse() # <--- РАСКОММЕНТИРОВАНО И АКТИВНО
+    await connect_to_clickhouse()
+    
+    # 2. Инициализируем репозитории и создаем индексы (если нужно)
+    try:
+        # Получаем соединение с БД, которое мы только что открыли
+        mongo_db_session = await get_mongo_db() 
+        user_repo = UserRepo(mongo_db_session)
+        # Вызываем метод для создания индексов
+        await user_repo.initialize_repo() 
+    except Exception as e:
+        logger.error(f"Failed to initialize repositories or create indexes: {e}")
+        # В реальном приложении здесь можно было бы остановить запуск
+        # raise e
+
 
 # Обработчик остановки приложения
 @app.on_event("shutdown")
@@ -38,7 +54,7 @@ async def shutdown_event():
     logger.info("Application shutdown...")
     # Закрываем оба соединения
     await close_mongo_connection()
-    await close_clickhouse_connection() # <--- РАСКОММЕНТИРОВАНО И АКТИВНО
+    await close_clickhouse_connection()
 
 # Настройка CORS
 if settings.CORS_ORIGINS:

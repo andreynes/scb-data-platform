@@ -39,10 +39,14 @@ async def upload_files(
             )
     
     try:
-        # Делегируем обработку файлов сервису
+        # 
+        # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+        # Вместо uploader_id передаем всего пользователя current_user
+        # под именем аргумента 'uploader', как того ожидает сервис.
+        #
         upload_statuses = await file_service.process_uploaded_files(
             files=files, 
-            uploader_id=str(current_user.id) # Передаем ID пользователя как строку
+            uploader=current_user 
         )
         return upload_statuses
     except Exception as e:

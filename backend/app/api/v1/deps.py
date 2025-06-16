@@ -21,7 +21,7 @@ from app.services.file_processing_service import FileProcessingService
 from app.services.data_query_service import DataQueryService
 
 # --- Схема OAuth2 ---
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 # --- Зависимости для Репозиториев ---
 def get_user_repo(db: AsyncIOMotorDatabase = Depends(get_mongo_db)) -> UserRepo:

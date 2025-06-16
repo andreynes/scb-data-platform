@@ -2,7 +2,7 @@
 
 import uuid  
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 # Базовая схема с общими полями
 class UserBaseSchema(BaseModel):
@@ -37,5 +37,9 @@ class UserSchema(UserInDBBase):
     pass
 
 # Полная схема пользователя в БД (включая хэш пароля)
-class UserInDB(UserInDBBase):
+class UserInDB(UserSchema):
+    id: str = Field(..., alias="_id") # MongoDB использует _id
     hashed_password: str
+
+    class Config:
+        populate_by_name = True # Разрешает использовать и id, и _id
