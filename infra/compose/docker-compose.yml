@@ -32,6 +32,11 @@ services:
       nofile:
         soft: 262144
         hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - scb_network
 
@@ -50,8 +55,10 @@ services:
     # Команда теперь не нужна, так как она жестко задана в Dockerfile
     # command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
-      - mongo
-      - clickhouse
+      mongo:
+        condition: service_started 
+      clickhouse:
+        condition: service_healthy 
     restart: always
     networks:
       - scb_network

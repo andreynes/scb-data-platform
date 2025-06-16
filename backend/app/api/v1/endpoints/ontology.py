@@ -5,10 +5,8 @@ from typing import Optional
 from app.services.ontology_service import OntologyService 
 from app.schemas.ontology_schemas import OntologySchema
 from app.api.v1.deps import get_ontology_service
-# Если эндпоинт будет защищен, раскомментируйте:
-# from app.api.v1.deps import get_current_admin_user (или get_current_active_user)
-# from app.schemas.user_schemas import UserSchema
 
+# УБИРАЕМ `tags` ОТСЮДА
 router = APIRouter()
 
 @router.get(
@@ -17,22 +15,15 @@ router = APIRouter()
     summary="Получить текущую активную схему онтологии",
     description="Возвращает полную структуру текущей активной версии онтологии, "
                 "включая атрибуты, их типы, описания и иерархии.",
-    tags=["ontology"], # Для группировки в Swagger UI
+    # УБИРАЕМ `tags=["ontology"]` И ОТСЮДА
     responses={
         404: {"description": "Активная схема онтологии не найдена"},
         500: {"description": "Внутренняя ошибка сервера"},
-        # 401: {"description": "Не аутентифицирован"}, # Если будет get_current_active_user
-        # 403: {"description": "Недостаточно прав"},    # Если будет get_current_admin_user
     }
 )
 async def get_current_ontology_schema(
     ontology_service: OntologyService = Depends(get_ontology_service)
-    # Если эндпоинт защищен, добавьте зависимость пользователя:
-    # current_user: UserSchema = Depends(get_current_admin_user) # или get_current_active_user
 ) -> OntologySchema:
-    """
-    Эндпоинт для получения текущей активной схемы онтологии.
-    """
     schema = await ontology_service.get_current_ontology_schema()
     if not schema:
         raise HTTPException(
@@ -40,5 +31,3 @@ async def get_current_ontology_schema(
             detail="Active ontology schema not found",
         )
     return schema
-
-# В будущем здесь могут быть эндпоинты для /ontology/vocabularies и т.д.
