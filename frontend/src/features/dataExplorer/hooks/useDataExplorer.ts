@@ -6,23 +6,23 @@ import {
   // Селекторы для получения данных из Redux-состояния
   selectQueryParams,
   selectQueryResult,
-  selectIsQueryLoading,
-  selectQueryError,
+  selectDataQueryStatus, // <--- ИСПРАВЛЕНИЕ 1: Импортируем правильный селектор статуса
+  selectDataQueryError,
   selectExportStatus,
   selectExportError,
   // Thunks для асинхронных действий
-  fetchDataQuery,
-  startDataExport,
+  fetchDataQueryThunk,  // <--- ИСПРАВЛЕНИЕ 2: Правильное имя Thunk'а
+  exportDataThunk,      // <--- ИСПРАВЛЕНИЕ 3: Правильное имя Thunk'а
   // Actions для синхронных действий
   setQueryParams as setQueryParamsAction,
 } from '../slice';
-import type { DataQuerySchema, ExportFormat } from '../../../services/generated';
+import type { DataQuerySchema, ExportFormat, DataQueryResponseSchema } from '../../../services/generated';
 
 // Определяем тип возвращаемого значения хука для удобства
 export interface DataExplorerHookResult {
   queryParams: DataQuerySchema;
   setQueryParams: (params: Partial<DataQuerySchema>) => void;
-  queryResult: any; // TODO: Заменить на DataQueryResponseSchema | null
+  queryResult: DataQueryResponseSchema | null; // <--- Улучшенная типизация
   isLoading: boolean;
   error: string | null;
   executeQuery: () => Promise<any>;
@@ -37,12 +37,12 @@ export function useDataExplorer(): DataExplorerHookResult {
   // Получаем все необходимые данные из Redux store с помощью селекторов
   const queryParams = useAppSelector(selectQueryParams);
   const queryResult = useAppSelector(selectQueryResult);
-  const isLoading = useAppSelector(selectIsQueryLoading);
-  const error = useAppSelector(selectQueryError);
+  const status = useAppSelector(selectDataQueryStatus); // <--- ИСПРАВЛЕНИЕ 4: Используем правильный селектор
+  const isLoading = status === 'loading'; // Вычисляем isLoading на основе статуса
+  const error = useAppSelector(selectDataQueryError);
   const exportStatus = useAppSelector(selectExportStatus);
   const exportError = useAppSelector(selectExportError);
 
-  // Создаем мемоизированные колбэки для действий, чтобы избежать лишних перерисовок
   const setQueryParams = useCallback(
     (params: Partial<DataQuerySchema>) => {
       dispatch(setQueryParamsAction(params));
@@ -52,18 +52,18 @@ export function useDataExplorer(): DataExplorerHookResult {
 
   const executeQuery = useCallback(async () => {
     // Диспатчим thunk для выполнения запроса данных
-    return dispatch(fetchDataQuery(queryParams)).unwrap();
-  }, [dispatch, queryParams]);
+    // Передаем void (или ничего), так как thunk не ожидает аргументов
+    return dispatch(fetchDataQueryThunk()).unwrap(); // <--- ИСПРАВЛЕНИЕ 5: Правильное имя и вызов
+  }, [dispatch]);
 
   const startExport = useCallback(
     async (format: ExportFormat) => {
       // Диспатчим thunk для запуска экспорта
-      return dispatch(startDataExport({ queryParams, format })).unwrap();
+      return dispatch(exportDataThunk({ format })).unwrap(); // <--- ИСПРАВЛЕНИЕ 6: Правильное имя и передача объекта
     },
-    [dispatch, queryParams]
+    [dispatch]
   );
 
-  // Возвращаем состояние и функции для использования в компонентах
   return {
     queryParams,
     setQueryParams,

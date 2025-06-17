@@ -3,9 +3,11 @@
 /* tslint:disable */
 /* eslint-disable */
 export type UserCreateSchema = {
-    username: string;
     email: string;
+    username: string;
     full_name?: (string | null);
+    is_active?: boolean;
+    role?: string;
     password: string;
 };
 

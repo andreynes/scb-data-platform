@@ -1,9 +1,14 @@
+// frontend/src/main.tsx
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './app/App'; // Убедимся, что импортируем App
 
-// Уберем пока все импорты стилей, чтобы исключить их влияние
-// import './index.css'; 
+// 1. Импортируем Provider из react-redux
+import { Provider } from 'react-redux';
+// 2. Импортируем наш Redux store
+import { store } from './app/store';
+
+import App from './app/App';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -11,8 +16,12 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+
 root.render(
   <React.StrictMode>
-    <App />
+    {/* 3. Оборачиваем все приложение в Provider и передаем ему store */}
+    <Provider store={store}>
+      <App />
+    </Provider>
   </React.StrictMode>
 );

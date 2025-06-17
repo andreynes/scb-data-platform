@@ -4,17 +4,17 @@ FROM apache/airflow:${AIRFLOW_VERSION}-python${PYTHON_VERSION}
 
 USER airflow
 
-# Копируем файлы зависимостей ETL в домашнюю директорию пользователя
-WORKDIR /home/airflow/etl
-COPY ../../etl/pyproject.toml ../../etl/poetry.lock* ./
+# Копируем файл с зависимостями
+COPY etl/requirements.txt /requirements.txt
 
-# Устанавливаем Poetry и зависимости ETL от имени пользователя airflow
-RUN pip install --user --no-cache-dir "poetry==1.8.2"
-RUN /home/airflow/.local/bin/poetry install --no-root --without dev
+# Устанавливаем зависимости через pip
+RUN pip install --user --no-cache-dir -r /requirements.txt
 
-# Добавляем установленные пакеты в PYTHONPATH
-ENV PYTHONPATH="/home/airflow/.local/lib/python3.10/site-packages:${PYTHONPATH}"
+# Копируем исходный код ETL. Airflow сам добавит /opt/airflow/dags в путь.
+# Нам нужно добавить только папку с исходниками.
+COPY --chown=airflow:airflow etl/src /opt/airflow/etl_src
 
-# Копируем DAG'и и исходный код ETL в стандартные директории Airflow
-COPY ../../etl/dags /opt/airflow/dags
-COPY ../../etl/src /opt/airflow/etl_src
+# Добавляем нашу папку с исходниками в PYTHONPATH
+ENV PYTHONPATH="/opt/airflow/etl_src:${PYTHONPATH}"
+
+USER airflow

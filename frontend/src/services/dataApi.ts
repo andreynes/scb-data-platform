@@ -1,7 +1,14 @@
 // frontend/src/services/dataApi.ts
 
-// --- > ИЗМЕНЕНИЕ ЗДЕСЬ: Вместо 'DataService' импортируем 'DefaultService' и переименовываем < ---
-import { DefaultService as DataService, DataQuerySchema, DataQueryResponseSchema, ExportFormat } from './generated';
+// 1. Импортируем РЕАЛЬНЫЙ сервис и все нужные схемы
+import { 
+  DataQueryService, 
+  DataQuerySchema, 
+  DataQueryResponseSchema 
+} from './generated';
+
+// Тип для формата экспорта, если он у вас есть в схемах, иначе его можно убрать
+// import type { ExportFormat } from './generated';
 
 /**
  * Выполняет запрос данных к СКЛАДА.
@@ -11,29 +18,30 @@ import { DefaultService as DataService, DataQuerySchema, DataQueryResponseSchema
  */
 export const fetchDataQuery = async (queryParams: DataQuerySchema): Promise<DataQueryResponseSchema> => {
   try {
-    // Вызов сгенерированной функции. Имя может отличаться, но обычно включает operationId.
-    const response = await DataService.queryDataApiV1DataQueryPost({
+    // 2. Вызываем метод НАПРЯМУЮ у импортированного сервиса
+    const response = await DataQueryService.queryDataApiV1DataQueryPost({
       requestBody: queryParams,
     });
     return response;
   } catch (error) {
     console.error("Data query API error:", error);
-    throw error; // Пробрасываем ошибку для обработки в Redux Thunk
+    // Пробрасываем ошибку для обработки выше (например, в UI или Redux)
+    throw error; 
   }
 };
 
 /**
- * Инициирует асинхронный экспорт данных.
- * @param queryParams - Параметры запроса для экспорта.
- * @param format - Желаемый формат экспорта ('excel' или 'csv').
- * @returns Promise, который может разрешаться объектом ExportResponseSchema или void.
+ * Инициирует асинхронный экспорт данных. (ЕСЛИ ОН ЕСТЬ)
+ * Если эндпоинта /export еще нет, этот код можно закомментировать или удалить.
  */
+/*
 export const startDataExport = async (
   queryParams: DataQuerySchema,
-  format: ExportFormat
-): Promise<void> => { // Для MVP возвращаем void, так как статус 202 не имеет тела
+  format: ExportFormat // Убедитесь, что тип ExportFormat существует в generated
+): Promise<void> => {
   try {
-    await DataService.exportDataApiV1DataExportPost({
+    // Генератор, скорее всего, создаст метод с таким именем
+    await DataQueryService.exportDataApiV1DataExportPost({
       requestBody: queryParams,
       format: format,
     });
@@ -42,3 +50,4 @@ export const startDataExport = async (
     throw error;
   }
 };
+*/

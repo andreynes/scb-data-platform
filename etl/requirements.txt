@@ -1,7 +1,11 @@
 # etl/requirements.txt
-pymongo
-pyyaml
-clickhouse-connect
-pandas
-openai
-# Добавьте другие зависимости ETL, если они появятся
+
+pyyaml>=6.0.1
+python-dotenv>=1.0.1
+pandas>=2.2.2
+openpyxl>=3.1.2
+pdfplumber>=0.11.1
+pydantic>=2.7.1
+pymongo[srv]>=4.7.2
+clickhouse-connect>=0.8.17
+pydantic-settings>=2.0
