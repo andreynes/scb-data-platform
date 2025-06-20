@@ -1,3 +1,4 @@
+// frontend/tsconfig.json
 {
   "compilerOptions": {
     "target": "ES2020",
@@ -5,6 +6,13 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+
+    /* Path Aliases - НАЧАЛО НОВОГО КОДА */
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["src/*"]
+    },
+    /* Path Aliases - КОНЕЦ НОВОГО КОДА */
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -18,14 +26,7 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-
-    /* --- НАШИ ИЗМЕНЕНИЯ - ПРОВЕРЬТЕ ЭТОТ БЛОК --- */
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
-    /* ------------------------------------------- */
+    "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

@@ -1,6 +1,7 @@
-version: '3.8'
+# docker-compose.yml
 
 services:
+  # --- Базы данных ---
   mongo:
     image: mongo:latest
     container_name: scb_mongo
@@ -12,6 +13,11 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     restart: always
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - scb_network
 
@@ -19,8 +25,8 @@ services:
     image: clickhouse/clickhouse-server:latest
     container_name: scb_clickhouse
     ports:
-      - "8123:8123" # Правильный HTTP порт для ClickHouse
-      - "9000:9000" # Правильный нативный порт для ClickHouse
+      - "8123:8123"
+      - "9000:9000"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
     environment:
@@ -40,41 +46,47 @@ services:
     networks:
       - scb_network
 
-  
+  # --- Приложения ---
   backend:
     build:
       context: ../..
-      dockerfile: infra/docker/backend/Dockerfile
-    container_name: scb_backend
+      dockerfile: ./infra/docker/backend/Dockerfile
+    container_name: backend
     ports:
       - "8000:8000"
-    # volumes: # Пока оставляем закомментированным для чистоты
-    #   - ../../backend/app:/app/app
+    volumes:
+      # Монтируем весь проект бэкенда в /app
+      - ../../backend/app:/app/app
+    environment:
+      # Указываем Python, где искать модули (для импортов 'from app...')
+      - PYTHONPATH=/app
     env_file:
       - .env
-    # Команда теперь не нужна, так как она жестко задана в Dockerfile
-    # command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # Указываем полный путь к uvicorn внутри venv
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       mongo:
-        condition: service_started 
+        condition: service_healthy
       clickhouse:
-        condition: service_healthy 
+        condition: service_healthy
     restart: always
     networks:
       - scb_network
+
   frontend:
     build:
-      context: ../../
+      context: ../..
       dockerfile: ./infra/docker/frontend/Dockerfile
     container_name: scb_frontend
     ports:
       - "5173:5173"
     volumes:
       - ../../frontend:/app
-      - /app/node_modules
+      - /app/node_modules # Предотвращает затирание node_modules из контейнера
     env_file:
       - .env
-    command: npm run dev -- --host # <-- Важный флаг для Vite
+    # Флаг --host нужен, чтобы Vite был доступен извне контейнера
+    command: npm run dev -- --host
     restart: always
     depends_on:
       - backend
@@ -113,6 +125,8 @@ services:
       - scb_network
 
   airflow-init:
+    # Этот сервис находится в профиле 'setup' и не будет запускаться по умолчанию
+    profiles: ["setup"]
     build:
       context: ../..
       dockerfile: ./infra/docker/etl/Dockerfile
@@ -140,11 +154,13 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ../../etl/dags:/opt/airflow/dags # Обновил путь для консистентности
+      - ../../etl/dags:/opt/airflow/dags
       - airflow_logs:/opt/airflow/logs
     depends_on:
-      airflow-init:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     command: webserver
     healthcheck:
       test: ["CMD-SHELL", "curl --fail http://localhost:8080/health"]
@@ -163,7 +179,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ../../etl/dags:/opt/airflow/dags # Обновил путь
+      - ../../etl/dags:/opt/airflow/dags
       - airflow_logs:/opt/airflow/logs
     depends_on:
       airflow-webserver:
@@ -174,14 +190,14 @@ services:
 
   airflow-worker:
     build:
-      context: ../../
+      context: ../..
       dockerfile: ./infra/docker/etl/Dockerfile
     container_name: scb_airflow_worker
     restart: always
     env_file:
       - .env
     volumes:
-      - ../../etl/dags:/opt/airflow/dags # Обновил путь
+      - ../../etl/dags:/opt/airflow/dags
       - airflow_logs:/opt/airflow/logs
     depends_on:
       airflow-scheduler:

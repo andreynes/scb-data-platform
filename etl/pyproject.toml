@@ -22,6 +22,7 @@ pydantic = "^2.7.1" # pydantic-settings здесь не нужен, если в�
 # Зависимости для баз данных
 pymongo = {extras = ["srv"], version = "^4.7.2"}
 clickhouse-connect = "^0.8.17"
+openai = "^1.88.0"
 
 
 [tool.poetry.group.dev.dependencies]

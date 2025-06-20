@@ -1,14 +1,19 @@
 // frontend/src/pages/FileUploadPage.tsx
 import React from 'react';
-import FileUploadSection from '../features/fileUpload/components/FileUploadSection'; // Уточните путь!
-// или тот компонент, который вы хотите здесь видеть
+import { Typography, Card } from 'antd';
+import { FileUploadSection } from '../features/fileUpload'; // <-- Проверьте этот импорт
+
+const { Title } = Typography;
 
 const FileUploadPage: React.FC = () => {
   return (
     <div>
-      <h1>Загрузка Файлов</h1>
-      <FileUploadSection />
+      <Title level={2}>Загрузка новых документов</Title>
+      <Card>
+        <FileUploadSection />
+      </Card>
     </div>
   );
 };
+
 export default FileUploadPage;

@@ -1,76 +1,27 @@
 // frontend/src/features/dataExplorer/components/QueryBuilder.tsx
+import React from 'react';
+import { Card, Button, Space, Typography } from 'antd';
 
-import React, { useEffect } from 'react';
-import { Card, Button, Spin, Alert, Row, Col, Space } from 'antd';
-import { useDataExplorer } from '../hooks/useDataExplorer';
-import DataTable from './DataTable'; // Мы создадим его на следующем шаге
+const { Title } = Typography;
 
-const QueryBuilder: React.FC = () => {
-  // Получаем все необходимое из нашего нового хука
-  const {
-    queryParams,
-    setQueryParams, // Пока не используем, но понадобится для фильтров
-    executeQuery,
-    queryResult,
-    isLoading,
-    error,
-  } = useDataExplorer();
-
-  // Для примера, выполним запрос для первого документа при загрузке
-  // В будущем это будет делаться по действию пользователя
-  useEffect(() => {
-    // Устанавливаем ID документа для теста. В будущем это будет динамически.
-    // Используйте ID, который точно есть в вашей БД после выполнения ETL.
-    // Например, ID файла, который вы загружали для тестирования ETL.
-    const testDocumentId = "ID_ВАШЕГО_ТЕСТОВОГО_ДОКУМЕНТА"; // !!! ЗАМЕНИТЕ НА РЕАЛЬНЫЙ ID !!!
-    
-    setQueryParams({ document_id: testDocumentId });
-    
-    // Запускаем запрос автоматически для демонстрации
-    // executeQuery(); // Лучше сделать по кнопке, чтобы не было лишних запросов
-  }, []); // Пустой массив зависимостей, чтобы выполнилось один раз
-
+export const QueryBuilder: React.FC = () => {
+  // Здесь в будущем будет логика для получения данных и управления состоянием
 
   const handleQuerySubmit = () => {
-    executeQuery();
+    alert('Запрос данных в разработке!');
   };
 
   return (
-    <Row gutter={[16, 16]}>
-      <Col xs={24} lg={8}>
-        <Card title="Параметры запроса" bordered={false}>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <p>Здесь будут фильтры и другие настройки.</p>
-            <p>Текущий документ: {queryParams.document_id || "не выбран"}</p>
-            <Button
-              type="primary"
-              onClick={handleQuerySubmit}
-              loading={isLoading}
-              block
-            >
-              Выполнить запрос
-            </Button>
-          </Space>
-        </Card>
-      </Col>
-      <Col xs={24} lg={16}>
-        <Card title="Результаты">
-          <Spin spinning={isLoading}>
-            {error && <Alert message="Ошибка запроса" description={error} type="error" showIcon />}
-            {queryResult && (
-              <DataTable
-                data={queryResult.data || []}
-                loading={isLoading}
-              />
-            )}
-            {!queryResult && !isLoading && !error && (
-              <div>Выполните запрос, чтобы увидеть результаты.</div>
-            )}
-          </Spin>
-        </Card>
-      </Col>
-    </Row>
+    <Space direction="vertical" style={{ width: '100%' }} size="large">
+      <Card title="Параметры запроса">
+        <p>Здесь будут фильтры и другие настройки.</p>
+        <Button type="primary" onClick={handleQuerySubmit}>
+          Выполнить запрос
+        </Button>
+      </Card>
+      <Card title="Результаты">
+        <p>Здесь будут отображаться результаты запроса.</p>
+      </Card>
+    </Space>
   );
 };
-
-export default QueryBuilder;

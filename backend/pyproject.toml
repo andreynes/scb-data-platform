@@ -25,9 +25,9 @@ bcrypt = "3.2.0"
 
 # --- Databases ---
 motor = "^3.4.0"
-clickhouse-connect = {version = "^0.8.17", extras = ["async"], optional = true}
 aiohttp = {version = "^3.9.5", optional = true}
 pandas = "^2.2.2"
+clickhouse-connect = "^0.8.17"
 
 [tool.poetry.group.dev.dependencies]
 mongomock-motor = "^0.0.36"

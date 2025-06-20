@@ -1,17 +1,22 @@
+// frontend/vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path' // <-- Эта строка обязательна!
+import path from 'path'; // <-- ДОБАВЬТЕ ЭТОТ ИМПОРТ
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  resolve: {
+  resolve: { // <-- НАЧАЛО НОВОГО БЛОКА
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '~': path.resolve(__dirname, './src'),
+    },
+  }, // <-- КОНЕЦ НОВОГО БЛОКА
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
     },
   },
-  server: {
-    host: true, // Необходимо для доступа к dev-серверу из Docker
-    port: 5173, 
-  }
 })

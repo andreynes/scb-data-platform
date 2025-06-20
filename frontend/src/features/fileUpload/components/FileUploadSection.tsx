@@ -1,62 +1,51 @@
 // frontend/src/features/fileUpload/components/FileUploadSection.tsx
+
 import React from 'react';
-import { Card, Button, Space, Typography } from 'antd';
-import { DeleteOutlined } from '@ant-design/icons';
+import { Button, Space } from 'antd'; // Добавил Space и Button для удобства
+
+// ПРАВИЛЬНЫЙ ИМПОРТ: Мы изменили этот файл на именованный экспорт
+import { FileUploadDropzone } from './FileUploadDropzone'; 
+
+// ПРАВИЛЬНЫЙ ИМПОРТ: А этот файл, скорее всего, всё еще использует экспорт по умолчанию
+import FileUploadList from './FileUploadList'; 
+
+// ПРАВИЛЬНЫЙ ИМПОРТ: Хуки часто экспортируются как именованные
 import { useFileUploadManager } from '../hooks/useFileUploadManager';
-import FileUploadDropzone from './FileUploadDropzone';
-import FileUploadList from './FileUploadList';
 
-const { Title } = Typography;
-
-interface FileUploadSectionProps {
-    // Можно добавить пропсы для кастомизации, если нужно, например:
-    // acceptedFileTypes?: string[];
-    // maxFileSize?: number;
-    // showClearButton?: boolean;
-}
-
-const FileUploadSection: React.FC<FileUploadSectionProps> = (props) => {
-    const {
-        uploads,
-        handleUploadStart,
-        clearCompletedUploads,
+// Экспортируем этот компонент тоже как именованный для единообразия
+export const FileUploadSection = () => {
+    // Получаем все необходимые данные и функции из нашего хука-менеджера
+    const { 
+        uploads, 
+        handleUploadStart, 
+        clearCompleted,
+        // Можно добавить и другие хендлеры, если хук их предоставляет
     } = useFileUploadManager();
 
-    const hasActiveUploads = uploads.some(
-        up => up.status === 'uploading' || up.status === 'waiting'
-    );
-    const hasCompletedOrFailedUploads = uploads.some(
-        up => up.status === 'success' || up.status === 'accepted' || up.status === 'error'
+    // Проверяем, есть ли завершенные (успешно или с ошибкой) загрузки
+    const hasCompletedUploads = uploads.some(
+        (up) => up.status === 'success' || up.status === 'error'
     );
 
     return (
-        <Card title={<Title level={3}>Загрузка файлов</Title>}>
-            <Space direction="vertical" style={{ width: '100%' }} size="large">
-                <FileUploadDropzone
-                    onUploadStart={handleUploadStart}
-                    // Передаем пропсы дальше, если они есть
-                    // acceptedFileTypes={props.acceptedFileTypes}
-                    // maxFileSize={props.maxFileSize}
-                    disabled={hasActiveUploads} // Блокируем дропзону во время активных загрузок
-                />
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+            {/* Компонент для выбора файлов */}
+            <FileUploadDropzone 
+                onUploadStart={handleUploadStart} 
+                // можно передать и другие пропсы, например, disabled={isLoading}
+            />
 
-                {uploads.length > 0 && (
-                    <FileUploadList uploads={uploads} />
-                )}
+            {/* Компонент для отображения списка загружаемых файлов */}
+            <FileUploadList uploads={uploads} />
 
-                {hasCompletedOrFailedUploads && !hasActiveUploads && (
-                    <Button
-                        icon={<DeleteOutlined />}
-                        onClick={clearCompletedUploads}
-                        danger
-                        style={{ marginTop: '10px' }}
-                    >
+            {/* Кнопка для очистки списка, появляется только когда есть что очищать */}
+            {hasCompletedUploads && (
+                <div style={{ textAlign: 'right', marginTop: '16px' }}>
+                    <Button onClick={clearCompleted}>
                         Очистить завершенные
                     </Button>
-                )}
-            </Space>
-        </Card>
+                </div>
+            )}
+        </Space>
     );
 };
-
-export default FileUploadSection;

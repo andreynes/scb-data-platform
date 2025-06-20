@@ -1,94 +1,72 @@
 // frontend/src/features/fileUpload/components/FileUploadList.tsx
+
 import React from 'react';
-import { List, Progress, Tag, Typography, Button, Space, Alert } from 'antd';
+import { List, Progress, Tag, Typography, Tooltip } from 'antd';
 import {
-    CloudUploadOutlined,
     CheckCircleOutlined,
     CloseCircleOutlined,
-    LoadingOutlined,
-    DeleteOutlined, 
+    SyncOutlined,
+    ClockCircleOutlined,
+    FileDoneOutlined,
 } from '@ant-design/icons';
-// ВОЗВРАЩАЕМ ОРИГИНАЛЬНЫЙ ИМПОРТ
-import type { UploadProgressInfo } from '../hooks/useFileUploadManager'; 
+// Предполагаем, что этот тип определен в хуке или в общем файле типов для фичи
+import { UploadProgressInfo } from '../hooks/useFileUploadManager';
 
 const { Text } = Typography;
 
 interface FileUploadListProps {
-    uploads: UploadProgressInfo[]; // Используем оригинальное имя типа
-    // onRemoveFile?: (uid: string) => void;
-    // onRetryUpload?: (uid: string) => void;
+    uploads: UploadProgressInfo[];
 }
 
-const FileUploadList: React.FC<FileUploadListProps> = ({
-    uploads,
-    // onRemoveFile,
-    // onRetryUpload,
-}) => {
+// ИЗМЕНЕНИЕ: Мы меняем экспорт на именованный (named export)
+export const FileUploadList: React.FC<FileUploadListProps> = ({ uploads }) => {
+    // Если нет файлов для отображения, ничего не рендерим
     if (uploads.length === 0) {
-        return null; 
+        return null;
     }
 
-    const getStatusIconAndColor = (status: UploadProgressInfo['status']) => { // Используем оригинальное имя типа
-        switch (status) {
+    const renderStatus = (item: UploadProgressInfo) => {
+        switch (item.status) {
             case 'waiting':
-                return { icon: <CloudUploadOutlined />, color: 'default' };
+                return <Tag icon={<ClockCircleOutlined />} color="default">Ожидание</Tag>;
             case 'uploading':
-                return { icon: <LoadingOutlined spin />, color: 'processing' };
-            case 'accepted': 
-                return { icon: <CheckCircleOutlined />, color: 'warning' }; 
-            case 'success': 
-                return { icon: <CheckCircleOutlined />, color: 'success' };
+                return <Progress percent={item.percent} size="small" status="active" />;
+            case 'accepted': // Бэкенд принял файл, ждем ETL
+                return <Tag icon={<FileSyncOutlined spin />} color="processing">В обработке</Tag>;
+            case 'success':
+                return <Tag icon={<CheckCircleOutlined />} color="success">Успешно</Tag>;
             case 'error':
-                return { icon: <CloseCircleOutlined />, color: 'error' };
+                return (
+                    <Tooltip title={item.errorMessage}>
+                        <Tag icon={<CloseCircleOutlined />} color="error">Ошибка</Tag>
+                    </Tooltip>
+                );
             default:
-                return { icon: <CloudUploadOutlined />, color: 'default' };
+                return null;
         }
     };
 
     return (
-        <div style={{ marginTop: '20px', maxHeight: '300px', overflowY: 'auto' }}>
-            <List
-                itemLayout="horizontal"
-                dataSource={uploads} 
-                renderItem={(item) => { 
-                    const { icon, color } = getStatusIconAndColor(item.status);
-                    return (
-                        <List.Item
-                        >
-                            <List.Item.Meta
-                                avatar={icon}
-                                title={<Text style={{ wordBreak: 'break-all' }}>{item.name}</Text>}
-                                description={
-                                    <>
-                                        <Tag color={color} style={{ marginRight: 8 }}>
-                                            {item.status === 'waiting' && 'Ожидание'}
-                                            {item.status === 'uploading' && 'Загрузка'}
-                                            {item.status === 'accepted' && 'Принят (Обработка)'}
-                                            {item.status === 'success' && 'Успешно'}
-                                            {item.status === 'error' && 'Ошибка'}
-                                        </Tag>
-                                        {item.status === 'uploading' && item.percent !== undefined && (
-                                            <Progress percent={item.percent} size="small" style={{ width: '70%' }} />
-                                        )}
-                                        {item.status === 'error' && item.errorMessage && (
-                                            <Text type="danger" style={{ display: 'block', fontSize: '0.85em' }}>
-                                                {item.errorMessage}
-                                            </Text>
-                                        )}
-                                        {item.status === 'accepted' && item.response?.document_id && (
-                                            <Text type="secondary" style={{ fontSize: '0.85em' }}>
-                                                ID Документа: {item.response.document_id}
-                                            </Text>
-                                        )}
-                                    </>
-                                }
-                            />
-                        </List.Item>
-                    );
-                }}
-            />
-        </div>
+        <List
+            header={<strong>История загрузок</strong>}
+            bordered
+            dataSource={uploads}
+            renderItem={(item) => (
+                <List.Item>
+                    <List.Item.Meta
+                        avatar={<FileDoneOutlined style={{ fontSize: '24px' }}/>}
+                        title={<Text style={{ fontSize: '14px' }}>{item.name}</Text>}
+                        description={
+                            item.status === 'error' 
+                                ? <Text type="danger" style={{ fontSize: '12px' }}>{item.errorMessage}</Text> 
+                                : <Text type="secondary" style={{ fontSize: '12px' }}>{`Статус: ${item.status}`}</Text>
+                        }
+                    />
+                    <div style={{ minWidth: '120px', textAlign: 'right' }}>
+                        {renderStatus(item)}
+                    </div>
+                </List.Item>
+            )}
+        />
     );
 };
-
-export default FileUploadList;

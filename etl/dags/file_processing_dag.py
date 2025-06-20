@@ -1,173 +1,171 @@
-from __future__ import annotations
+# etl/dags/file_processing_dag.py
 
-import pendulum 
-from datetime import timedelta
+import asyncio
+import os
+from datetime import datetime
+from typing import Dict, Any, List
 
 from airflow.decorators import dag, task
-from airflow.exceptions import AirflowException
+from airflow.models.param import Param
+from airflow.operators.python import get_current_context
 
-# --- Импорт наших ETL модулей ---
-from etl_src.utils.logging_utils import setup_etl_logger
-from etl_src.utils.config_utils import etl_settings
+# --- Импорты всех наших ETL модулей ---
+from etl.src.extract import mongo_extractor
+from etl.src.transform.parsing import parser_orchestrator
+from etl.src.transform.validation import validator as data_validator # <-- ДОБАВЛЕНО
+from etl.src.load import clickhouse_loader, mongo_updater           # <-- ДОБАВЛЕНО
+from etl.src.llm.llm_client import LLMClient
+from etl.src.ontology import ontology_loader
+from etl.src.utils.logging_utils import setup_etl_logger          # <-- ДОБАВЛЕНО
 
-from etl_src.extract import mongo_extractor
-from etl_src.ontology import ontology_loader
-from etl_src.transform.parsing import parser_orchestrator
-from etl_src.transform.cleaning import cleaner 
-from etl_src.transform.validation import validator 
-from etl_src.transform.null_handling import null_handler 
-from etl_src.load import clickhouse_loader, mongo_updater 
+# --- Импорты клиентов БД ---
+from etl.src.db_clients import get_mongo_db_client, get_clickhouse_client
 
-# --- Импорт клиентов БД ---
-from pymongo import MongoClient
-import clickhouse_connect
+logger = setup_etl_logger(__name__)
 
-# ... (весь блок с глобальными переменными остается без изменений) ...
-MONGO_CONN_URI = etl_settings.MONGO_DB_URL
-MONGO_DB_NAME = etl_settings.MONGO_DB_NAME
-RAW_DATA_LAKE_COLLECTION = etl_settings.RAW_DATA_LAKE_COLLECTION
-ONTOLOGY_SCHEMAS_COLLECTION = etl_settings.ONTOLOGY_SCHEMAS_COLLECTION
-ONTOLOGY_VOCABULARIES_COLLECTION = etl_settings.ONTOLOGY_VOCABULARIES_COLLECTION
-ONTOLOGY_STATUS_COLLECTION = etl_settings.ONTOLOGY_STATUS_COLLECTION
-
-
-CLICKHOUSE_HOST = etl_settings.CLICKHOUSE_HOST
-CLICKHOUSE_PORT = etl_settings.CLICKHOUSE_PORT
-CLICKHOUSE_USER = etl_settings.CLICKHOUSE_USER
-CLICKHOUSE_PASSWORD = etl_settings.CLICKHOUSE_PASSWORD
-CLICKHOUSE_DB = etl_settings.CLICKHOUSE_DB
-CLICKHOUSE_ATOMIC_TABLE = etl_settings.CLICKHOUSE_ATOMIC_TABLE
-
-dag_logger = setup_etl_logger('file_processing_dag')
-
-# --- Определение DAG ---
 @dag(
     dag_id="file_processing_dag",
-    schedule=None, 
-    start_date=pendulum.datetime(2023, 1, 1, tz="UTC"),
+    start_date=datetime(2023, 1, 1),
+    schedule=None,
     catchup=False,
-    tags=["etl", "core"],
-    default_args={
-        "owner": "airflow",
-        "retries": 1, 
-        "retry_delay": timedelta(minutes=1),
+    params={
+        "document_id": Param(None, type="string"),
+        "use_llm": Param(False, type="boolean", description="Принудительно использовать LLM для парсинга"),
+        "ontology_version": Param(None, type=["null", "string"], description="Конкретная версия онтологии для репарсинга"),
     },
-    doc_md=__doc__
+    tags=["etl", "core"],
 )
-def file_processing_workflow():
+def file_processing():
     """
-    ### Основной DAG для обработки файлов
-    ... (документация без изменений) ...
+    DAG для полной обработки одного файла: от извлечения из ОЗЕРА до загрузки в СКЛАД.
+    Включает опциональное использование LLM.
     """
 
     @task
-    def get_file_info_and_set_processing(dag_run=None):
-        """Извлекает метаданные документа и JSON, обновляет статус на 'Processing'."""
-        # ... (код таска без изменений) ...
-        document_id = dag_run.conf.get("document_id")
+    def get_document_info() -> Dict[str, Any]:
+        """Извлекает метаданные документа и параметры запуска из ОЗЕРА."""
+        context = get_current_context()
+        document_id = context["params"].get("document_id")
         if not document_id:
-            dag_logger.error("document_id not provided in DAG run configuration.")
-            raise ValueError("document_id is required")
-        
-        dag_logger.info(f"Starting processing for document_id: {document_id}")
-        
-        client = MongoClient(MONGO_CONN_URI)
-        db = client[MONGO_DB_NAME]
-        
-        mongo_updater.update_document_processing_status(
-            mongo_db=db,
-            document_id=document_id,
-            status="Processing",
-            raw_data_lake_collection_name=RAW_DATA_LAKE_COLLECTION
-        )
-        
-        metadata = mongo_extractor.get_document_metadata(document_id, db, RAW_DATA_LAKE_COLLECTION)
+            raise ValueError("`document_id` must be provided in DAG params")
+
+        mongo_client = get_mongo_db_client()
+        metadata = mongo_extractor.get_document_metadata_sync(document_id, mongo_client)
         if not metadata:
-            mongo_updater.update_document_processing_status(db, document_id, "Error_Extracting", "Metadata not found", RAW_DATA_LAKE_COLLECTION)
             raise ValueError(f"Metadata not found for document_id: {document_id}")
         
-        client.close()
-        dag_logger.info(f"Extracted metadata for document_id: {document_id}")
-        return {"document_id": document_id, "metadata": metadata}
-
+        # Обновляем статус на "в обработке"
+        mongo_updater.update_processing_status_sync(document_id, "Processing", db_client=mongo_client)
+        
+        # Добавляем параметры запуска в метаданные для передачи по XCom
+        metadata['use_llm'] = context["params"].get("use_llm", False)
+        metadata['target_ontology_version'] = context["params"].get("ontology_version")
+        
+        return metadata
 
     @task
-    def load_active_ontology():
-        """Загружает активную схему онтологии и справочники."""
-        client = MongoClient(MONGO_CONN_URI)
-        db = client[MONGO_DB_NAME]
+    def parse_data(document_metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Задача парсинга. Может использовать прямой парсер или LLM."""
+        mongo_client = get_mongo_db_client()
         
-        collection_names_cfg = {
-            "status": ONTOLOGY_STATUS_COLLECTION,
-            "schemas": ONTOLOGY_SCHEMAS_COLLECTION,
-            "vocabularies": ONTOLOGY_VOCABULARIES_COLLECTION,
+        target_version = document_metadata.get('target_ontology_version')
+        if target_version:
+             ontology_schema = ontology_loader.get_ontology_schema_by_version_sync(target_version, mongo_client)
+        else:
+             ontology_schema = ontology_loader.get_current_ontology_schema_sync(mongo_client)
+
+        if not ontology_schema:
+            raise RuntimeError(f"Could not load ontology schema (target version: {target_version or 'active'}).")
+            
+        use_llm_flag = document_metadata.get('use_llm', False)
+        llm_client_instance = None
+
+        if use_llm_flag:
+            llm_provider = os.getenv("LLM_PROVIDER")
+            llm_api_key = os.getenv("LLM_API_KEY")
+            llm_parsing_model = os.getenv("LLM_PARSING_MODEL_NAME")
+
+            if not all([llm_provider, llm_api_key, llm_parsing_model]):
+                raise ValueError("LLM configuration is missing in environment variables.")
+            
+            llm_client_instance = LLMClient(provider=llm_provider, api_key=llm_api_key, model_name=llm_parsing_model)
+
+        parsed_data = asyncio.run(
+            parser_orchestrator.parse_document_content(
+                document_metadata=document_metadata,
+                ontology_schema=ontology_schema,
+                use_llm=use_llm_flag,
+                llm_client=llm_client_instance
+            )
+        )
+        
+        if not parsed_data:
+            logger.warning(f"Parsing returned no data for document {document_metadata.get('_id')}")
+
+        return {
+            "parsed_data": parsed_data,
+            "ontology_schema": ontology_schema,
+            "document_id": document_metadata.get('_id')
         }
 
-        # _get_active_ontology_version_id остается как есть, он нам нужен для загрузки справочников
-        active_version_id = ontology_loader._get_active_ontology_version_id(db, collection_names_cfg)
-        if not active_version_id:
-            raise ValueError("No active ontology version found.")
+    # <-- НАЧАЛО НОВЫХ/ОБНОВЛЕННЫХ ЗАДАЧ -->
+    @task
+    def validate_data(parsing_result: dict) -> dict:
+        """Валидирует распарсенные данные по схеме онтологии."""
+        parsed_data = parsing_result["parsed_data"]
+        ontology_schema = parsing_result["ontology_schema"]
         
-        #
-        # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-        # Убираем лишний аргумент. Функция сама найдет активную версию.
-        #
-        schema = ontology_loader.get_current_ontology_schema(db, collection_names_cfg)
+        if not parsed_data:
+            logger.info("No data to validate, skipping.")
+            return parsing_result # Передаем дальше, чтобы обновить статус
+
+        mongo_client = get_mongo_db_client()
+        # Загружаем справочники, необходимые для валидации
+        vocabularies = ontology_loader.get_all_vocabularies_sync(ontology_schema, mongo_client)
+
+        validated_data = data_validator.validate_cleaned_data(
+            cleaned_data=parsed_data,
+            ontology_schema=ontology_schema,
+            ontology_vocabularies=vocabularies
+        )
+        parsing_result["validated_data"] = validated_data
+        return parsing_result
+
+    @task
+    def load_to_warehouse(validation_result: dict):
+        """Загружает валидированные данные в ClickHouse и обновляет статус в MongoDB."""
+        validated_data = validation_result.get("validated_data")
+        document_id = validation_result["document_id"]
+        ontology_schema = validation_result["ontology_schema"]
         
-        # Исправляем вызов для get_multiple_vocabularies. 
-        # Первый аргумент - список имен, передаем None, если нужно загрузить все.
-        # В вашем коде был None, но это может быть неверно, зависит от реализации.
-        # Для безопасности пока передадим пустой список, чтобы он ничего не загружал, если не нужно.
-        # Если вам нужны все справочники, реализация get_multiple_vocabularies должна это поддерживать.
-        vocabularies = ontology_loader.get_multiple_vocabularies([], db, active_version_id, collection_names_cfg)
+        mongo_client = get_mongo_db_client()
         
-        client.close()
-        if not schema:
-             raise ValueError("Failed to load active ontology schema.")
-        dag_logger.info(f"Loaded active ontology version: {active_version_id}")
-        return {"ontology_schema": schema, "ontology_vocabularies": vocabularies, "ontology_version": active_version_id}
+        if not validated_data:
+            logger.warning(f"No validated data to load for document {document_id}. Updating status to Processed.")
+            mongo_updater.update_processing_status_sync(document_id, "Processed", db_client=mongo_client)
+            return
 
-    # ... (остальные таски и определение потока остаются без изменений) ...
-    @task
-    def parse_data(file_info_and_metadata: dict, ontology_info: dict):
-        # ...
-        pass
-    @task
-    def clean_data(parsed_data_info: dict, ontology_info: dict):
-        # ...
-        pass
-    @task
-    def validate_data(cleaned_data_info: dict, ontology_info: dict):
-        # ...
-        pass
-    @task
-    def handle_nulls(validated_data_info: dict, ontology_info: dict):
-        # ...
-        pass
-    @task
-    def load_to_warehouse(null_handled_data_info: dict, ontology_info: dict):
-        # ...
-        pass
-    @task(trigger_rule="all_done")
-    def update_final_status(load_result: Optional[dict], document_id: str, validation_errors: list):
-        # ...
-        pass
+        ch_client = get_clickhouse_client()
+        try:
+            clickhouse_loader.load_data_to_warehouse_sync(
+                data_to_load=validated_data,
+                ch_client=ch_client,
+                original_document_id=document_id,
+                ontology_version=ontology_schema['version']
+            )
+            mongo_updater.update_processing_status_sync(document_id, "Processed", db_client=mongo_client)
+            logger.info(f"Successfully loaded data for document {document_id} to Warehouse.")
+        except Exception as e:
+            logger.error(f"Failed to load data to Warehouse for document {document_id}. Error: {e}", exc_info=True)
+            mongo_updater.update_processing_status_sync(document_id, "Error", error_message=str(e), db_client=mongo_client)
+            raise # Провалить задачу в Airflow
+    # <-- КОНЕЦ НОВЫХ/ОБНОВЛЕННЫХ ЗАДАЧ -->
 
-    # --- Определение потока задач ---
-    file_info = get_file_info_and_set_processing()
-    ontology = load_active_ontology()
-    
-    parsed = parse_data(file_info_and_metadata=file_info, ontology_info=ontology)
-    cleaned = clean_data(parsed_data_info=parsed, ontology_info=ontology)
-    validated = validate_data(cleaned_data_info=cleaned, ontology_info=ontology)
-    null_handled = handle_nulls(validated_data_info=validated, ontology_info=ontology)
-    
-    load_result = load_to_warehouse(null_handled_data_info=null_handled, ontology_info=ontology)
-    
-    update_final_status(
-        load_result=load_result, 
-        document_id=file_info["document_id"],
-        validation_errors=validated["validation_errors"]
-    )
+    # --- Определение последовательности выполнения ---
+    doc_info = get_document_info()
+    parsing_result = parse_data(doc_info)
+    validated_result = validate_data(parsing_result)
+    load_to_warehouse(validated_result) # Конечная задача
 
-file_processing_dag = file_processing_workflow()
+# Создаем экземпляр DAG
+file_processing_dag = file_processing()
