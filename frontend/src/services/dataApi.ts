@@ -2,13 +2,12 @@
 
 // 1. Импортируем РЕАЛЬНЫЙ сервис и все нужные схемы
 import { 
-  DataQueryService, 
+  DataService, 
   DataQuerySchema, 
-  DataQueryResponseSchema 
+  DataQueryResponseSchema,
+  ExportFormat, // Предполагаем, что этот Enum тоже сгенерирован
+  ExportResponseSchema
 } from './generated';
-
-// Тип для формата экспорта, если он у вас есть в схемах, иначе его можно убрать
-// import type { ExportFormat } from './generated';
 
 /**
  * Выполняет запрос данных к СКЛАДА.
@@ -19,7 +18,7 @@ import {
 export const fetchDataQuery = async (queryParams: DataQuerySchema): Promise<DataQueryResponseSchema> => {
   try {
     // 2. Вызываем метод НАПРЯМУЮ у импортированного сервиса
-    const response = await DataQueryService.queryDataApiV1DataQueryPost({
+    const response = await DataService.queryDataApiV1DataQueryPost({
       requestBody: queryParams,
     });
     return response;
@@ -31,23 +30,41 @@ export const fetchDataQuery = async (queryParams: DataQuerySchema): Promise<Data
 };
 
 /**
- * Инициирует асинхронный экспорт данных. (ЕСЛИ ОН ЕСТЬ)
- * Если эндпоинта /export еще нет, этот код можно закомментировать или удалить.
+ * Инициирует асинхронный экспорт данных.
  */
-/*
 export const startDataExport = async (
   queryParams: DataQuerySchema,
-  format: ExportFormat // Убедитесь, что тип ExportFormat существует в generated
-): Promise<void> => {
+  format: ExportFormat
+): Promise<ExportResponseSchema | void> => {
   try {
-    // Генератор, скорее всего, создаст метод с таким именем
-    await DataQueryService.exportDataApiV1DataExportPost({
+    const response = await DataService.exportDataApiV1DataExportPost({
       requestBody: queryParams,
       format: format,
     });
+    return response;
   } catch (error) {
     console.error("Data export API error:", error);
     throw error;
   }
 };
-*/
+
+// <<< НАЧАЛО НОВОЙ ФУНКЦИИ >>>
+/**
+ * Помечает документ для ручной верификации ("тревожная кнопка").
+ * @param documentId - ID документа для пометки.
+ */
+export const flagDocumentForVerification = async (
+  documentId: string
+): Promise<any> => {
+  try {
+    // Имя сгенерированной функции может отличаться в зависимости от operationId
+    const response = await DataService.flagForVerificationApiV1DataDocumentIdFlagForVerificationPost({
+      documentId,
+    });
+    return response;
+  } catch (error) {
+    console.error(`Failed to flag document ${documentId} for verification:`, error);
+    throw error;
+  }
+};
+// <<< КОНЕЦ НОВОЙ ФУНКЦИИ >>>

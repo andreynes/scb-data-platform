@@ -9,7 +9,7 @@ from airflow.decorators import dag, task
 from airflow.models.param import Param
 from airflow.operators.python import get_current_context
 
-# --- ИСПРАВЛЕННЫЕ ИМПОРТЫ ---
+# --- ИМПОРТЫ ---
 from etl.src.extract import mongo_extractor
 from etl.src.transform.parsing import parser_orchestrator
 from etl.src.transform.validation import validator as data_validator
@@ -17,9 +17,10 @@ from etl.src.load import clickhouse_loader, mongo_updater
 from etl.src.llm.llm_client import LLMClient
 from etl.src.ontology import ontology_loader
 from etl.src.utils.logging_utils import setup_etl_logger
-# Вот он, исправленный импорт!
 from etl.src.utils.db_clients import get_mongo_db_client, get_clickhouse_client
-# ----------------------------
+# <<< НОВЫЙ ИМПОРТ >>>
+from etl.src.transform.null_handling import null_handler
+# -----------------
 
 logger = setup_etl_logger(__name__)
 
@@ -38,7 +39,7 @@ logger = setup_etl_logger(__name__)
 def file_processing():
     """
     DAG для полной обработки одного файла: от извлечения из ОЗЕРА до загрузки в СКЛАД.
-    Включает опциональное использование LLM.
+    Включает обработку NULL-значений и опциональное использование LLM.
     """
 
     @task
@@ -49,7 +50,7 @@ def file_processing():
         if not document_id:
             raise ValueError("`document_id` must be provided in DAG params")
 
-        mongo_db = get_mongo_db_client() # Используем нашу новую функцию
+        mongo_db = get_mongo_db_client()
         metadata = mongo_extractor.get_document_metadata_sync(document_id, mongo_db)
         if not metadata:
             raise ValueError(f"Metadata not found for document_id: {document_id}")
@@ -114,6 +115,7 @@ def file_processing():
         
         if not parsed_data:
             logger.info("No data to validate, skipping.")
+            parsing_result["validated_data"] = []
             return parsing_result
 
         mongo_db = get_mongo_db_client()
@@ -126,25 +128,46 @@ def file_processing():
         )
         parsing_result["validated_data"] = validated_data
         return parsing_result
+    
+    # <<< НАЧАЛО НОВОЙ ЗАДАЧИ >>>
+    @task
+    def handle_nulls(validation_result: dict) -> dict:
+        """Обрабатывает семантику NULL-значений в данных после валидации."""
+        validated_data = validation_result.get("validated_data")
+        ontology_schema = validation_result.get("ontology_schema")
+
+        if not validated_data or not ontology_schema:
+            logger.info("No data for NULL processing, skipping.")
+            validation_result["processed_data"] = []
+            return validation_result
+        
+        processed_data = null_handler.process_null_semantics(
+            validated_data=validated_data,
+            ontology_schema=ontology_schema
+        )
+        validation_result["processed_data"] = processed_data
+        return validation_result
+    # <<< КОНЕЦ НОВОЙ ЗАДАЧИ >>>
 
     @task
-    def load_to_warehouse(validation_result: dict):
-        """Загружает валидированные данные в ClickHouse и обновляет статус в MongoDB."""
-        validated_data = validation_result.get("validated_data")
-        document_id = validation_result["document_id"]
-        ontology_schema = validation_result["ontology_schema"]
+    def load_to_warehouse(null_handling_result: dict): # <<< ИЗМЕНЕН ВХОДНОЙ ПАРАМЕТР
+        """Загружает валидированные и обработанные данные в ClickHouse и обновляет статус в MongoDB."""
+        # <<< ИЗМЕНЕНИЕ: БЕРЕМ ДАННЫЕ ПОСЛЕ ОБРАБОТКИ NULL >>>
+        data_to_load = null_handling_result.get("processed_data") 
+        document_id = null_handling_result["document_id"]
+        ontology_schema = null_handling_result["ontology_schema"]
         
         mongo_db = get_mongo_db_client()
         
-        if not validated_data:
-            logger.warning(f"No validated data to load for document {document_id}. Updating status to Processed.")
+        if not data_to_load:
+            logger.warning(f"No processed data to load for document {document_id}. Updating status to Processed.")
             mongo_updater.update_processing_status_sync(document_id, "Processed", db_client=mongo_db)
             return
 
         ch_client = get_clickhouse_client()
         try:
             clickhouse_loader.load_data_to_warehouse_sync(
-                data_to_load=validated_data,
+                data_to_load=data_to_load,
                 ch_client=ch_client,
                 original_document_id=document_id,
                 ontology_version=ontology_schema['version']
@@ -156,11 +179,12 @@ def file_processing():
             mongo_updater.update_processing_status_sync(document_id, "Error", error_message=str(e), db_client=mongo_db)
             raise
 
-    # --- Определение последовательности выполнения ---
+    # --- ОБНОВЛЕНИЕ ПОСЛЕДОВАТЕЛЬНОСТИ ВЫПОЛНЕНИЯ ---
     doc_info = get_document_info()
     parsing_result = parse_data(doc_info)
     validated_result = validate_data(parsing_result)
-    load_to_warehouse(validated_result)
+    null_result = handle_nulls(validated_result) # <<< ДОБАВЛЕН ВЫЗОВ НОВОЙ ЗАДАЧИ
+    load_to_warehouse(null_result) # <<< ТЕПЕРЬ ПРИНИМАЕТ РЕЗУЛЬТАТ ОБРАБОТКИ NULL
 
 # Создаем экземпляр DAG
 file_processing_dag = file_processing()

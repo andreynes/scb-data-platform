@@ -1,47 +1,75 @@
 // frontend/src/app/router.tsx
 import React from 'react';
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAppSelector } from './hooks';
-import { selectIsAuthenticated } from '../features/auth/slice';
+import { selectIsAuthenticated, selectCurrentUser } from '../features/auth/slice';
 
-// Импорты страниц
+// --- ИМПОРТЫ СТРАНИЦ ---
 import LoginPage from '../pages/LoginPage';
 import DataExplorerPage from '../pages/DataExplorerPage';
-import FileUploadPage from '../pages/FileUploadPage'; // <-- Убедитесь, что этот импорт есть
 import UserProfilePage from '../pages/UserProfilePage';
 import NotFoundPage from '../pages/NotFoundPage';
+// Административные страницы
+import OntologyManagementPage from '../pages/OntologyManagementPage';
+import VerificationPage from '../pages/VerificationPage';
 
-// Импорты макетов
+// --- ИМПОРТЫ МАКЕТОВ ---
 import MainLayout from '../components/Layout/MainLayout';
 import AuthLayout from '../components/Layout/AuthLayout';
 
-// Компонент для защиты роутов
-const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+// Компонент для защиты роутов (остается без изменений)
+const ProtectedRoute = ({ children, adminOnly = false }: { children: JSX.Element; adminOnly?: boolean }) => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const currentUser = useAppSelector(selectCurrentUser);
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+
+  if (adminOnly && currentUser?.role !== 'admin' && currentUser?.role !== 'maintainer') {
+    return <Navigate to="/" replace />;
+  }
+
   return children;
 };
 
 export function AppRouter() {
   return (
     <Routes>
-      {/* Маршруты, требующие аутентификации и использующие основной макет */}
-      <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-        <Route index element={<DataExplorerPage />} />
-        <Route path="data-explorer" element={<DataExplorerPage />} />
-        <Route path="upload" element={<FileUploadPage />} /> {/* <-- ВОТ НУЖНЫЙ МАРШРУТ */}
-        <Route path="profile" element={<UserProfilePage />} />
-        {/* Сюда можно добавлять другие защищенные страницы */}
-      </Route>
-
-      {/* Маршруты для аутентификации */}
+      {/* Маршруты для аутентификации, использующие AuthLayout */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
       </Route>
 
-      {/* Страница "Не найдено" */}
+      {/* Маршруты, требующие аутентификации и использующие MainLayout */}
+      <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+        
+        {/* Главная страница для залогиненных пользователей */}
+        <Route index element={<DataExplorerPage />} />
+        
+        {/* Основные страницы для всех пользователей */}
+        <Route path="data-explorer" element={<DataExplorerPage />} />
+        <Route path="profile" element={<UserProfilePage />} />
+
+        {/* 
+          --- АДМИНИСТРАТИВНЫЕ МАРШРУТЫ ---
+          Они также являются дочерними для MainLayout, чтобы сохранить общую навигацию.
+          Каждый из них защищен флагом adminOnly.
+        */}
+        <Route 
+          path="ontology" 
+          element={<ProtectedRoute adminOnly><OntologyManagementPage /></ProtectedRoute>} 
+        />
+        <Route 
+          path="verification" 
+          element={<ProtectedRoute adminOnly><VerificationPage /></ProtectedRoute>} 
+        />
+        {/* Если в будущем появится общая админ-панель, ее можно будет добавить сюда: */}
+        {/* <Route path="admin" element={<ProtectedRoute adminOnly><AdminDashboardPage /></ProtectedRoute>} /> */}
+
+      </Route>
+
+      {/* Страница "Не найдено" для всех остальных путей */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
