@@ -8,6 +8,7 @@ import {
     SyncOutlined,
     ClockCircleOutlined,
     FileDoneOutlined,
+    FileSyncOutlined, 
 } from '@ant-design/icons';
 // Предполагаем, что этот тип определен в хуке или в общем файле типов для фичи
 import { UploadProgressInfo } from '../hooks/useFileUploadManager';

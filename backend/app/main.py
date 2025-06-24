@@ -1,25 +1,26 @@
+# backend/app/main.py
+
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-# Импортируем все нужные функции для обеих баз данных
 from app.db.session import (
     connect_to_mongo,
     close_mongo_connection,
     connect_to_clickhouse,
     close_clickhouse_connection,
-    get_mongo_db  # <--- ДОБАВЛЕН ИМПОРТ
+    get_mongo_db
 )
-# Импортируем репозиторий для инициализации
-from app.repositories.user_repo import UserRepo # <--- ДОБАВЛЕН ИМПОРТ
-from app.api.v1.api import api_router_v1 as api_router_v1
+from app.repositories.user_repo import UserRepo
+from app.api.v1.api import api_router # Используем правильное имя
 from app.core.logging_config import setup_logging
 
-# Настройка логирования при старте
+# Настройка логирования
 setup_logging()
 logger = logging.getLogger(__name__)
 
+# Создание основного объекта приложения FastAPI
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
@@ -27,36 +28,29 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
-# Обработчик старта приложения
+# Обработчик события "startup"
 @app.on_event("startup")
 async def startup_event():
     logger.info("Application startup...")
-    # 1. Подключаемся к обеим базам
     await connect_to_mongo()
     await connect_to_clickhouse()
     
-    # 2. Инициализируем репозитории и создаем индексы (если нужно)
+    # Инициализация репозиториев и создание индексов
     try:
-        # Получаем соединение с БД, которое мы только что открыли
         mongo_db_session = await get_mongo_db() 
         user_repo = UserRepo(mongo_db_session)
-        # Вызываем метод для создания индексов
         await user_repo.initialize_repo() 
     except Exception as e:
         logger.error(f"Failed to initialize repositories or create indexes: {e}")
-        # В реальном приложении здесь можно было бы остановить запуск
-        # raise e
 
-
-# Обработчик остановки приложения
+# Обработчик события "shutdown"
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Application shutdown...")
-    # Закрываем оба соединения
     await close_mongo_connection()
     await close_clickhouse_connection()
 
-# Настройка CORS
+# Настройка CORS middleware
 if settings.CORS_ORIGINS:
     app.add_middleware(
         CORSMiddleware,
@@ -66,10 +60,12 @@ if settings.CORS_ORIGINS:
         allow_headers=["*"],
     )
 
+# Эндпоинт для проверки "здоровья" сервиса
 @app.get("/health", tags=["Health"])
 async def health_check():
     return {"status": "ok"}
 
-app.include_router(api_router_v1, prefix=settings.API_V1_STR)
+# Подключение всех роутеров из api.py с префиксом /api/v1
+app.include_router(api_router, prefix=settings.API_V1_STR)
 
 logger.info("Application configured.")

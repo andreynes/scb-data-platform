@@ -1,4 +1,4 @@
-# docker-compose.yml
+version: '3.8'
 
 services:
   # --- Базы данных ---
@@ -51,18 +51,15 @@ services:
     build:
       context: ../..
       dockerfile: ./infra/docker/backend/Dockerfile
-    container_name: backend
+    container_name: scb_backend
     ports:
       - "8000:8000"
     volumes:
-      # Монтируем весь проект бэкенда в /app
       - ../../backend/app:/app/app
     environment:
-      # Указываем Python, где искать модули (для импортов 'from app...')
       - PYTHONPATH=/app
     env_file:
       - .env
-    # Указываем полный путь к uvicorn внутри venv
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       mongo:
@@ -82,10 +79,9 @@ services:
       - "5173:5173"
     volumes:
       - ../../frontend:/app
-      - /app/node_modules # Предотвращает затирание node_modules из контейнера
+      - /app/node_modules
     env_file:
       - .env
-    # Флаг --host нужен, чтобы Vite был доступен извне контейнера
     command: npm run dev -- --host
     restart: always
     depends_on:
@@ -125,7 +121,6 @@ services:
       - scb_network
 
   airflow-init:
-    # Этот сервис находится в профиле 'setup' и не будет запускаться по умолчанию
     profiles: ["setup"]
     build:
       context: ../..
@@ -142,6 +137,9 @@ services:
     command: -c "airflow db migrate && (airflow users create --username admin --password admin --firstname SCB --lastname Admin --role Admin --email admin@example.com || true)"
     networks:
       - scb_network
+    # --- ИСПРАВЛЕНО: Добавлена переменная PYTHONPATH ---
+    environment:
+      - PYTHONPATH=/opt/airflow
 
   airflow-webserver:
     build:
@@ -151,10 +149,14 @@ services:
     restart: always
     env_file:
       - .env
+    # --- ИСПРАВЛЕНО: Добавлена переменная PYTHONPATH ---
+    environment:
+      - PYTHONPATH=/opt/airflow
     ports:
       - "8080:8080"
     volumes:
-      - ../../etl/dags:/opt/airflow/dags
+      # --- ИСПРАВЛЕНО: Добавлено монтирование папки с кодом ---
+      - ../../etl:/opt/airflow/etl 
       - airflow_logs:/opt/airflow/logs
     depends_on:
       postgres:
@@ -178,8 +180,12 @@ services:
     restart: always
     env_file:
       - .env
+    # --- ИСПРАВЛЕНО: Добавлена переменная PYTHONPATH ---
+    environment:
+      - PYTHONPATH=/opt/airflow
     volumes:
-      - ../../etl/dags:/opt/airflow/dags
+      # --- ИСПРАВЛЕНО: Добавлено монтирование папки с кодом ---
+      - ../../etl:/opt/airflow/etl
       - airflow_logs:/opt/airflow/logs
     depends_on:
       airflow-webserver:
@@ -196,8 +202,12 @@ services:
     restart: always
     env_file:
       - .env
+    # --- ИСПРАВЛЕНО: Добавлена переменная PYTHONPATH ---
+    environment:
+      - PYTHONPATH=/opt/airflow
     volumes:
-      - ../../etl/dags:/opt/airflow/dags
+      # --- ИСПРАВЛЕНО: Добавлено монтирование папки с кодом ---
+      - ../../etl:/opt/airflow/etl
       - airflow_logs:/opt/airflow/logs
     depends_on:
       airflow-scheduler:
