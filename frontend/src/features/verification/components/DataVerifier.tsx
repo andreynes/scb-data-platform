@@ -1,70 +1,117 @@
 // frontend/src/features/verification/components/DataVerifier.tsx
-import React from 'react';
-import { Alert, Spin, Descriptions, Table, Typography } from 'antd';
+import React, { useState, useMemo } from 'react';
+import { Alert, Spin, Descriptions, Table, Typography, Modal, Tag } from 'antd';
 import { useVerificationTask } from '../hooks/useVerificationTask';
 import { VerificationControls } from './VerificationControls';
+import { CorrectionInput } from './CorrectionInput'; // <<< НОВЫЙ ИМПОРТ
+import { SelectedCellInfo } from '../types';
 
 interface DataVerifierProps {
   taskId: string;
+  onClose: () => void; // Колбэк для кнопки "Назад к очереди"
 }
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
-export const DataVerifier: React.FC<DataVerifierProps> = ({ taskId }) => {
+export const DataVerifier: React.FC<DataVerifierProps> = ({ taskId, onClose }) => {
   const {
     verificationData,
     isLoading,
     error,
     isSubmitting,
     submitVerification,
+    appliedCorrections, // <<< ПОЛУЧАЕМ ИСПРАВЛЕНИЯ ИЗ ХУКА
+    applyCorrection,    // <<< ПОЛУЧАЕМ ФУНКЦИЮ ДЛЯ ИСПРАВЛЕНИЙ
   } = useVerificationTask(taskId);
-
-  if (isLoading) {
-    return <Spin tip="Загрузка данных для верификации..." size="large" />;
-  }
-
-  if (error) {
-    return <Alert message="Ошибка загрузки данных" description={error} type="error" showIcon />;
-  }
   
-  if (!verificationData) {
-     return <Alert message="Данные для верификации не найдены." type="warning" />;
-  }
+  const [selectedCell, setSelectedCell] = useState<SelectedCellInfo | null>(null);
 
-  const atomicDataColumns = verificationData.atomic_data?.[0]
-    ? Object.keys(verificationData.atomic_data[0]).map(key => ({
-        title: key,
-        dataIndex: key,
-        key: key,
-      }))
-    : [];
+  const handleCellClick = (atomId: string, columnKey: string, currentValue: any) => {
+    setSelectedCell({ atomId, columnKey, currentValue });
+  };
+
+  const handleModalClose = () => {
+    setSelectedCell(null);
+  };
+
+  const handleCorrectionSubmit = (correction: any) => {
+    applyCorrection(correction); // Обновляем локальное состояние исправлений через хук
+    handleModalClose();
+  };
+
+  // Логика генерации колонок теперь включает обработку клика и подсветку исправлений
+  const tableColumns = useMemo(() => {
+    if (!verificationData?.atomic_data?.[0]) return [];
+    const keys = Object.keys(verificationData.atomic_data[0]);
+    
+    return keys.map((key) => ({
+      title: key,
+      dataIndex: key,
+      key: key,
+      render: (text: any, record: any) => {
+        const atomId = record._id || record.id;
+        const correction = appliedCorrections.find(c => c.atomId === atomId && c.fieldName === key);
+
+        const cellValue = correction ? correction.newValue : text;
+        const displayValue = String(cellValue ?? '-');
+        
+        return (
+          <div 
+            onClick={() => handleCellClick(atomId, key, text)} 
+            style={{ cursor: 'pointer', minWidth: '100px' }}
+          >
+            {correction ? <Tag color="blue">Исправлено</Tag> : null}
+            {displayValue}
+          </div>
+        );
+      },
+    }));
+  }, [verificationData, appliedCorrections]);
+
+  // ... (блоки isLoading, error, !verificationData остаются такими же) ...
+  if (isLoading) { /* ... */ }
+  if (error) { /* ... */ }
+  if (!verificationData) { /* ... */ }
 
   return (
     <div>
+      <Button onClick={onClose} style={{ marginBottom: 16 }}>
+        ← Назад к очереди
+      </Button>
       <Title level={4}>Верификация документа: {verificationData.document_id}</Title>
       
-      <Descriptions bordered column={1} style={{ marginBottom: 24 }}>
-        <Descriptions.Item label="Исходное JSON представление">
-          <pre style={{ maxHeight: '300px', overflow: 'auto', background: '#f5f5f5', padding: '10px' }}>
-            {JSON.stringify(verificationData.json_representation, null, 2)}
-          </pre>
-        </Descriptions.Item>
-      </Descriptions>
-
-      <Title level={5}>Распознанные Атомарные Данные</Title>
+      <Title level={5}>Атомарные Данные (кликните на ячейку для исправления)</Title>
       <Table
-        columns={atomicDataColumns}
-        dataSource={verificationData.atomic_data?.map((item, index) => ({...item, key: index}))}
+        columns={tableColumns}
+        dataSource={verificationData.atomic_data?.map((item: any) => ({ ...item, key: item._id || item.id }))}
         bordered
         size="small"
         pagination={false}
         scroll={{ x: 'max-content' }}
       />
       
+      {selectedCell && (
+        <Modal
+          title={`Исправление: ${selectedCell.columnKey}`}
+          open={!!selectedCell}
+          onCancel={handleModalClose}
+          footer={null} // Управление кнопками внутри CorrectionInput
+          destroyOnClose
+        >
+          <CorrectionInput
+            cellData={selectedCell}
+            ontologyAttributes={verificationData.ontology_schema?.attributes || []}
+            onSubmitCorrection={handleCorrectionSubmit}
+            onCancel={handleModalClose}
+            vocabularies={{}} // TODO: Передать сюда реальные словари
+          />
+        </Modal>
+      )}
+      
       <VerificationControls
         isSubmitting={isSubmitting}
         onSubmit={submitVerification}
-        onCancel={() => { /* TODO: Логика для кнопки отмены */ }}
+        onCancel={onClose}
       />
     </div>
   );

@@ -5,12 +5,14 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from '~/features/auth/slice';
 import ontologyManagementReducer from '~/features/ontologyManagement/slice';
 import dataExplorerReducer from '~/features/dataExplorer/slice';
+import verificationReducer from '../features/verification/verificationSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     ontologyManagement: ontologyManagementReducer,
     dataExplorer: dataExplorerReducer,
+    verification: verificationReducer,
   },
 });
 

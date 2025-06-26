@@ -1,30 +1,33 @@
 // frontend/src/features/dataExplorer/components/QueryBuilder.tsx
 
-import React from 'react';
-// <<< ДОБАВЛЕНЫ Tooltip, message >>>
-import { Card, Button, Space, Typography, Tooltip, message } from 'antd';
-// <<< ДОБАВЛЕНА ИКОНКА >>>
+import React, { useState } from 'react';
+import { Card, Button, Space, Tooltip, message, Alert, Spin, Row, Col } from 'antd';
 import { FlagOutlined } from '@ant-design/icons';
 
-// <<< ДОБАВЛЕН ИМПОРТ API И ХУКА >>>
 import { useDataExplorer } from '../hooks/useDataExplorer';
-import { flagDocumentForVerification } from '../../../services/dataApi';
+// ИСПРАВЛЕНО: Используем правильное имя сервиса
+import { flagDocumentForVerification } from '../../../services/dataApi'; 
+
+// ИСПРАВЛЕНО: Предполагаем, что DataTable экспортируется как именованный экспорт
+import DataTable from './DataTable';
+import { DataChart } from './DataChart';
+import { ExportButton } from './ExportButton';
 
 export const QueryBuilder: React.FC = () => {
-  // Используем хук для управления состоянием
+  const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
+
   const { 
     queryParams, 
     queryResult, 
     isLoading,
+    error,
     executeQuery 
   } = useDataExplorer();
 
   const handleQuerySubmit = () => {
-    // executeQuery уже не принимает аргументов, т.к. берет их из стейта
     executeQuery();
   };
 
-  // <<< НОВАЯ ФУНКЦИЯ-ОБРАБОТЧИК >>>
   const handleFlagForVerification = async () => {
     const docId = queryParams.document_id;
     if (!docId) {
@@ -35,49 +38,67 @@ export const QueryBuilder: React.FC = () => {
     try {
       await flagDocumentForVerification(docId);
       message.success(`Документ ${docId} успешно отправлен на верификацию.`);
-    } catch (error: any) {
-      const errorMessage = error?.body?.detail || "Не удалось отправить документ на верификацию.";
+    } catch (err: any) {
+      const errorMessage = err?.body?.detail || "Не удалось отправить документ на верификацию.";
       message.error(errorMessage);
     }
   };
 
+  const hasData = queryResult && queryResult.data && queryResult.data.length > 0;
+
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="large">
-      <Card title="Параметры запроса">
-        <p>Здесь будут фильтры и другие настройки. (Текущий документ: {queryParams.document_id || 'не выбран'})</p>
-        <Button 
-          type="primary" 
-          onClick={handleQuerySubmit} 
-          loading={isLoading}
-        >
-          Выполнить запрос
-        </Button>
-      </Card>
-      
-      {/* Отображаем результаты только если они есть */}
-      {queryResult && (
-        <Card 
-          title="Результаты" 
-          extra={
-            <Space>
-              {/* <<< НАЧАЛО НОВОЙ КНОПКИ >>> */}
-              <Tooltip title="Сообщить об ошибке или неточности в этих данных">
-                <Button 
-                  icon={<FlagOutlined />} 
-                  onClick={handleFlagForVerification}
-                  danger
-                >
-                  На верификацию
-                </Button>
-              </Tooltip>
-              {/* <<< КОНЕЦ НОВОЙ КНОПКИ >>> */}
-            </Space>
-          }
-        >
-          {/* Здесь будет DataTable, пока просто выводим JSON */}
-          <pre>{JSON.stringify(queryResult.data, null, 2)}</pre>
+    <Row gutter={[16, 16]}>
+      <Col xs={24} lg={8}>
+        <Card title="Параметры запроса">
+          <p>Здесь будут фильтры. (Документ: {queryParams.document_id || 'не выбран'})</p>
+          <Button 
+            type="primary" 
+            onClick={handleQuerySubmit} 
+            loading={isLoading}
+            block
+          >
+            Выполнить запрос
+          </Button>
         </Card>
-      )}
-    </Space>
+      </Col>
+
+      <Col xs={24} lg={16}>
+        <Spin spinning={isLoading}>
+          <Card 
+            title="Результаты" 
+            extra={
+              <Space>
+                {hasData && (
+                  <Button.Group>
+                    <Button onClick={() => setViewMode('table')} type={viewMode === 'table' ? 'primary' : 'default'}>Таблица</Button>
+                    <Button onClick={() => setViewMode('chart')} type={viewMode === 'chart' ? 'primary' : 'default'}>График</Button>
+                  </Button.Group>
+                )}
+                {hasData && <ExportButton queryParams={queryParams} />}
+                {hasData && (
+                  <Tooltip title="Сообщить об ошибке в данных">
+                    <Button icon={<FlagOutlined />} onClick={handleFlagForVerification} danger />
+                  </Tooltip>
+                )}
+              </Space>
+            }
+          >
+            {error && <Alert message="Ошибка запроса данных" description={error} type="error" showIcon style={{ marginBottom: 16 }} />}
+            
+            {hasData && viewMode === 'table' && queryResult.data && (
+              <DataTable data={queryResult.data} />
+            )}
+            
+            {hasData && viewMode === 'chart' && queryResult.data && (
+               <DataChart data={queryResult.data} />
+            )}
+            
+            {!hasData && !isLoading && !error && (
+              <div>Выполните запрос, чтобы увидеть результаты.</div>
+            )}
+          </Card>
+        </Spin>
+      </Col>
+    </Row>
   );
 };

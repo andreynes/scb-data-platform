@@ -2,30 +2,26 @@
 import React, { useState } from 'react';
 import { VerificationQueueTable } from '../features/verification/components/VerificationQueueTable';
 import { useVerificationQueue } from '../features/verification/hooks/useVerificationQueue';
-import { DataVerifier } from '../features/verification/components/DataVerifier'; // Примерный компонент для просмотра
+import { DataVerifier } from '../features/verification/components/DataVerifier'; 
 import { Button } from 'antd';
 
 const VerificationPage: React.FC = () => {
   const { tasks, isLoading, fetchQueue } = useVerificationQueue();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
-  // Загружаем очередь при первом рендере
   React.useEffect(() => {
-    fetchQueue();
-  }, [fetchQueue]);
+    // Загружаем очередь только если ID задачи не выбран
+    if (!selectedTaskId) {
+      fetchQueue();
+    }
+  }, [selectedTaskId, fetchQueue]);
 
   if (selectedTaskId) {
-    // Здесь будет компонент для просмотра ОДНОЙ задачи
     return (
-      <div>
-        <Button onClick={() => setSelectedTaskId(null)} style={{ marginBottom: 16 }}>
-          ← Назад к очереди
-        </Button>
-        {/* Этот компонент будет получать данные по taskID через свой хук */}
-        {/* <DataVerifier taskId={selectedTaskId} /> */}
-        <p>Просмотр задачи: {selectedTaskId}</p> 
-        {/* Временная заглушка для DataVerifier */}
-      </div>
+      <DataVerifier 
+        taskId={selectedTaskId} 
+        onClose={() => setSelectedTaskId(null)} 
+      />
     );
   }
 

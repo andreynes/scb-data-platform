@@ -1,63 +1,61 @@
 // frontend/src/services/dataApi.ts
 
-// 1. Импортируем РЕАЛЬНЫЙ сервис и все нужные схемы
+// ИСПРАВЛЕНО: Используем правильное имя сервиса 'DataService'
 import { 
-  DataService, 
-  DataQuerySchema, 
-  DataQueryResponseSchema,
-  ExportFormat, // Предполагаем, что этот Enum тоже сгенерирован
-  ExportResponseSchema
+  DataService, // <--- ВОТ ГЛАВНОЕ ИСПРАВЛЕНИЕ
+  type DataQuerySchema, 
+  type DataQueryResponseSchema,
+  type ExportFormat 
 } from './generated';
 
 /**
  * Выполняет запрос данных к СКЛАДА.
- * @param queryParams - Параметры запроса (фильтры, агрегации, и т.д.).
- * @returns Promise, который разрешается объектом DataQueryResponseSchema.
- * @throws Ошибку, если API возвращает ошибку.
  */
 export const fetchDataQuery = async (queryParams: DataQuerySchema): Promise<DataQueryResponseSchema> => {
   try {
-    // 2. Вызываем метод НАПРЯМУЮ у импортированного сервиса
+    // Вызываем метод у правильного сервиса DataService
     const response = await DataService.queryDataApiV1DataQueryPost({
       requestBody: queryParams,
     });
     return response;
   } catch (error) {
     console.error("Data query API error:", error);
-    // Пробрасываем ошибку для обработки выше (например, в UI или Redux)
     throw error; 
   }
 };
 
 /**
- * Инициирует асинхронный экспорт данных.
+ * Инициирует асинхронный экспорт данных и возвращает Blob.
  */
 export const startDataExport = async (
   queryParams: DataQuerySchema,
   format: ExportFormat
-): Promise<ExportResponseSchema | void> => {
+): Promise<Blob | null> => {
   try {
+    // Вызываем метод у правильного сервиса DataService
     const response = await DataService.exportDataApiV1DataExportPost({
       requestBody: queryParams,
       format: format,
     });
-    return response;
-  } catch (error) {
+    if (response instanceof Blob) {
+      return response;
+    }
+    return null;
+  } catch (error)
+  {
     console.error("Data export API error:", error);
     throw error;
   }
 };
 
-// <<< НАЧАЛО НОВОЙ ФУНКЦИИ >>>
 /**
  * Помечает документ для ручной верификации ("тревожная кнопка").
- * @param documentId - ID документа для пометки.
  */
 export const flagDocumentForVerification = async (
   documentId: string
 ): Promise<any> => {
   try {
-    // Имя сгенерированной функции может отличаться в зависимости от operationId
+    // Вызываем метод у правильного сервиса DataService
     const response = await DataService.flagForVerificationApiV1DataDocumentIdFlagForVerificationPost({
       documentId,
     });
@@ -67,4 +65,3 @@ export const flagDocumentForVerification = async (
     throw error;
   }
 };
-// <<< КОНЕЦ НОВОЙ ФУНКЦИИ >>>

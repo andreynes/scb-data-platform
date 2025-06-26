@@ -8,6 +8,6 @@ export type UserSchema = {
     full_name?: (string | null);
     is_active?: boolean;
     role?: string;
-    id: string;
+    _id?: string;
 };
 

@@ -7,7 +7,7 @@ import {
   selectOntologySchema,
   selectOntologyIsLoading,
   selectOntologyError,
-} from '../ontologySlice'; // Селекторы из нашего slice
+} from '../slice'; 
 import type { OntologySchema, OntologyAttribute } from '../../../services/generated'; // Типы
 
 // Тип для строки таблицы атрибутов

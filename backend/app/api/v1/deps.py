@@ -1,11 +1,11 @@
-from typing import Optional, AsyncGenerator
+# backend/app/api/v1/deps.py
+
+from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from pydantic import ValidationError
 from motor.motor_asyncio import AsyncIOMotorDatabase
-# Удаляем ненужный импорт AsyncClient отсюда
-# from clickhouse_connect.driver import AsyncClient as ClickHouseClient
 
 from app.core.config import settings
 from app.db.session import get_mongo_db, get_clickhouse_client
@@ -19,6 +19,10 @@ from app.services.auth_service import AuthService
 from app.services.ontology_service import OntologyService
 from app.services.file_processing_service import FileProcessingService
 from app.services.data_query_service import DataQueryService
+# --- НОВЫЕ ИМПОРТЫ ---
+from app.services.verification_service import VerificationService
+from app.services.admin_service import AdminService
+
 
 # --- Схема OAuth2 ---
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
@@ -34,7 +38,6 @@ def get_data_lake_repo(db: AsyncIOMotorDatabase = Depends(get_mongo_db)) -> Data
     return DataLakeRepo(db=db)
 
 def get_warehouse_repo(
-    # FastAPI сам поймет тип из функции get_clickhouse_client
     ch_client = Depends(get_clickhouse_client)
 ) -> WarehouseRepo:
     return WarehouseRepo(ch_client=ch_client)
@@ -60,6 +63,27 @@ def get_file_processing_service(
     data_lake_repo: DataLakeRepo = Depends(get_data_lake_repo)
 ) -> FileProcessingService:
     return FileProcessingService(data_lake_repo=data_lake_repo)
+
+# --- НОВАЯ ЗАВИСИМОСТЬ ДЛЯ VERIFICATION_SERVICE ---
+def get_verification_service(
+    data_lake_repo: DataLakeRepo = Depends(get_data_lake_repo),
+    warehouse_repo: WarehouseRepo = Depends(get_warehouse_repo),
+) -> VerificationService:
+    return VerificationService(
+        data_lake_repo=data_lake_repo, warehouse_repo=warehouse_repo
+    )
+
+# --- НОВАЯ ЗАВИСИМОСТЬ ДЛЯ ADMIN_SERVICE ---
+def get_admin_service(
+    data_lake_repo: DataLakeRepo = Depends(get_data_lake_repo),
+    verification_service: VerificationService = Depends(get_verification_service)
+) -> AdminService:
+    # Мы не передаем airflow_client, так как убрали его из __init__
+    return AdminService(
+        data_lake_repo=data_lake_repo,
+        verification_service=verification_service
+    )
+
 
 # --- Зависимости для Аутентификации и Авторизации ---
 async def get_current_user(
@@ -97,6 +121,7 @@ async def get_current_active_user(
 async def get_current_admin_user(
     current_user: UserSchema = Depends(get_current_active_user),
 ) -> UserSchema:
+    # ВАЖНО: Убедитесь, что роли в вашем коде соответствуют этим
     if current_user.role not in ["admin", "maintainer"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 

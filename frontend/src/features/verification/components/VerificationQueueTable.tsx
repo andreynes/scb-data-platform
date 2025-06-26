@@ -3,7 +3,7 @@ import React from 'react';
 import { Table, Button, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { VerificationTaskSchema } from '../../../services/generated';
-import { formatDate } from '../../../utils/dateUtils';
+import { formatDate } from '../../../utils/dateUtils';  
 
 interface VerificationQueueTableProps {
   tasks: VerificationTaskSchema[];

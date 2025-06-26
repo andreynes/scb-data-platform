@@ -1,15 +1,16 @@
 # backend/app/api/v1/endpoints/data.py
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+import io
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi.responses import StreamingResponse
 
-from backend.app.schemas.data_schemas import DataQuerySchema, DataQueryResponseSchema
-from backend.app.schemas.user_schemas import UserSchema
-from backend.app.services.data_query_service import DataQueryService
-from backend.app.api.v1.deps import get_current_active_user, get_data_query_service
+from app.schemas.data_schemas import DataQuerySchema, DataQueryResponseSchema, ExportFormat
+from app.schemas.user_schemas import UserSchema
+from app.services.data_query_service import DataQueryService
+from app.api.v1.deps import get_current_active_user, get_data_query_service
 
 logger = logging.getLogger(__name__)
 
-# <<< ДОБАВЛЕН ТЕГ ДЛЯ ГРУППИРОВКИ >>>
 router = APIRouter(tags=["Data"])
 
 
@@ -49,8 +50,58 @@ async def query_data(
             detail="An internal error occurred while processing your request.",
         )
 
+# <<< НАЧАЛО НОВОГО ЭНДПОИНТА ДЛЯ ЭКСПОРТА >>>
+@router.post(
+    "/export",
+    summary="Экспорт данных в файл",
+    description="Формирует и возвращает файл (Excel или CSV) с данными по заданным параметрам запроса.",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Данные для экспорта по указанным параметрам не найдены"},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Внутренняя ошибка сервера при создании файла"},
+    },
+)
+async def export_data(
+    query_params: DataQuerySchema,
+    format: ExportFormat = Query(..., description="Формат экспорта: 'excel' или 'csv'"),
+    data_service: DataQueryService = Depends(get_data_query_service),
+    current_user: UserSchema = Depends(get_current_active_user),
+):
+    """
+    Эндпоинт для синхронного экспорта данных.
+    """
+    try:
+        file_bytes = await data_service.prepare_export_data(
+            query_params=query_params, format=format
+        )
+        
+        if not file_bytes:
+             raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No data to export for the given query.",
+            )
 
-# <<< НАЧАЛО НОВОГО ЭНДПОИНТА >>>
+        file_extension = "xlsx" if format == ExportFormat.EXCEL else "csv"
+        media_type = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            if format == ExportFormat.EXCEL
+            else "text/csv"
+        )
+        
+        filename = f"export_{query_params.document_id or 'custom_query'}.{file_extension}"
+        
+        return StreamingResponse(
+            io.BytesIO(file_bytes),
+            media_type=media_type,
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Error during data export: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal error occurred while creating the export file.",
+        )
+# <<< КОНЕЦ НОВОГО ЭНДПОИНТА ДЛЯ ЭКСПОРТА >>>
+
 @router.post(
     "/{document_id}/flag-for-verification",
     status_code=status.HTTP_202_ACCEPTED,
@@ -90,4 +141,3 @@ async def flag_for_verification(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An internal error occurred while flagging the document.",
         )
-# <<< КОНЕЦ НОВОГО ЭНДПОИНТА >>>

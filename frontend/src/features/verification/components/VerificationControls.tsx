@@ -1,52 +1,64 @@
 // frontend/src/features/verification/components/VerificationControls.tsx
 import React from 'react';
-import { Button, Space, Popconfirm } from 'antd';
-import { CheckCircleOutlined, IssuesCloseOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import { VerificationStatus } from '../../../services/generated';
+import { Button, Space, message, Popconfirm } from 'antd';
+import { CheckOutlined, CloseOutlined } from '@ant-design/icons';
+
+// ИСПРАВЛЕНИЕ: 
+// 1. Убираем несуществующий импорт VerificationTaskStatus.
+// 2. Вместо него определяем тип прямо здесь, так как он используется только в этом компоненте.
+type VerificationStatus = 'Verified' | 'NeedsFixing';
 
 interface VerificationControlsProps {
-  onSubmit: (status: VerificationStatus) => void;
-  onCancel: () => void;
+  // Используем наш локально определенный тип
+  onUpdateStatus: (status: VerificationStatus) => void;
   isSubmitting: boolean;
 }
 
-export const VerificationControls: React.FC<VerificationControlsProps> = ({
-  onSubmit,
-  onCancel,
-  isSubmitting,
+export const VerificationControls: React.FC<VerificationControlsProps> = ({ 
+  onUpdateStatus, 
+  isSubmitting 
 }) => {
-  return (
-    <Space style={{ width: '100%', justifyContent: 'flex-end', marginTop: '24px' }}>
-      <Button icon={<CloseCircleOutlined />} onClick={onCancel} disabled={isSubmitting}>
-        Отмена
-      </Button>
+  const handleConfirm = () => {
+    // ИСПРАВЛЕНИЕ: Используем строковый литерал вместо enum
+    onUpdateStatus('Verified'); 
+    message.success('Статус "Проверено человеком" будет установлен.');
+  };
 
+  const handleNeedsFixing = () => {
+    // ИСПРАВЛЕНИЕ: Используем строковый литерал вместо enum
+    onUpdateStatus('NeedsFixing');
+    message.warning('Статус "Требует доработки" будет установлен.');
+  };
+
+  return (
+    <Space style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
       <Popconfirm
         title="Отправить на доработку?"
-        description="Задача будет помечена как требующая дополнительного внимания."
-        onConfirm={() => onSubmit(VerificationStatus.NEEDS_FIXING)}
-        okText="Да, отправить"
+        description="Этот документ будет помечен как требующий исправлений."
+        onConfirm={handleNeedsFixing}
+        okText="Да"
         cancelText="Нет"
-        disabled={isSubmitting}
       >
-        <Button icon={<IssuesCloseOutlined />} loading={isSubmitting} disabled={isSubmitting}>
+        <Button 
+          icon={<CloseOutlined />} 
+          danger 
+          loading={isSubmitting}
+        >
           Требует доработки
         </Button>
       </Popconfirm>
-
+      
       <Popconfirm
         title="Завершить верификацию?"
-        description="Задача будет помечена как 'Проверено человеком'."
-        onConfirm={() => onSubmit(VerificationStatus.VERIFIED)}
-        okText="Да, завершить"
-        cancelText="Нет"
-        disabled={isSubmitting}
+        description="Вы уверены, что все данные корректны?"
+        onConfirm={handleConfirm}
+        okText="Да, все верно"
+        cancelText="Отмена"
       >
-        <Button
-          type="primary"
-          icon={<CheckCircleOutlined />}
+        <Button 
+          type="primary" 
+          icon={<CheckOutlined />} 
           loading={isSubmitting}
-          disabled={isSubmitting}
         >
           Проверено
         </Button>

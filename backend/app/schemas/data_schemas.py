@@ -1,5 +1,6 @@
 # backend/app/schemas/data_schemas.py
 
+from enum import Enum
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Dict
 from datetime import date
@@ -53,8 +54,9 @@ class DataQueryResponseSchema(BaseModel):
     data: List[AtomicDataRow]
     pagination: Optional[PaginationInfo] = None
 
-class ExportFormat(BaseModel):
-    format: str
+class ExportFormat(str, Enum):
+    EXCEL = "excel"
+    CSV = "csv"
 
 class ExportResponseSchema(BaseModel):
     task_id: str

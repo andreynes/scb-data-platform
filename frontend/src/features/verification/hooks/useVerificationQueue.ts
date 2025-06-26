@@ -2,7 +2,7 @@
 import { useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../../../app/hooks';
 import {
-  fetchVerificationQueue as fetchVerificationQueueThunk,
+  fetchVerificationQueueThunk as fetchVerificationQueue,
   selectVerificationQueueTasks,
   selectVerificationQueueIsLoading,
   selectVerificationQueueError,

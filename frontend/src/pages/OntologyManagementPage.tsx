@@ -8,7 +8,7 @@ import {
   selectOntologyIsLoading,
   selectOntologyError,
   selectOntologySchema // Нам не нужен весь schema здесь, только его наличие для useEffect
-} from '../features/ontologyManagement/ontologySlice';
+} from '../features/ontologyManagement/slice';
 
 const { Title } = Typography;
 

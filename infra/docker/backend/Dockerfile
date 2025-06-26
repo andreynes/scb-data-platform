@@ -1,35 +1,26 @@
-# Этап 1: Сборка зависимостей с помощью Poetry
+# infra/docker/backend/Dockerfile
+
+# --- Этап 1: Сборщик зависимостей ---
 FROM python:3.10-slim as builder
 
-WORKDIR /app
-
-# Устанавливаем Poetry
 RUN pip install poetry
-
-# Копируем файлы управления зависимостями в корень рабочей директории
+WORKDIR /app
 COPY backend/pyproject.toml backend/poetry.lock* ./
-
-# Говорим poetry создавать .venv внутри этой папки
 RUN poetry config virtualenvs.in-project true
-
-# Устанавливаем зависимости
-RUN poetry install --no-root --sync
+RUN poetry install --without dev --sync --no-root
 
 
-# Этап 2: Финальный, легковесный образ
+# --- Этап 2: Финальный образ ---
 FROM python:3.10-slim
 
-# Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Устанавливаем PATH, чтобы исполняемые файлы из .venv были доступны напрямую
+# Копируем .venv и код
+COPY --from=builder /app/.venv ./.venv
+COPY backend/ ./
+
+# Устанавливаем PATH, чтобы uvicorn был доступен
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Копируем виртуальное окружение с зависимостями с предыдущего этапа
-COPY --from=builder /app/.venv ./.venv
-
-# Копируем исходный код нашего приложения в подпапку 'app'
-COPY backend/app ./app
-
-# Команда для запуска приложения по умолчанию.
+# Команда по умолчанию
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
