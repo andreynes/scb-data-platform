@@ -33,7 +33,10 @@ app = FastAPI(
 async def startup_event():
     logger.info("Application startup...")
     await connect_to_mongo()
+    # --- ИЗМЕНЕНИЕ ---
+    # Убираем await, так как функция теперь синхронная
     connect_to_clickhouse()
+    # --- КОНЕЦ ИЗМЕНЕНИЯ ---
     
     # Инициализация репозиториев и создание индексов
     try:
@@ -42,13 +45,22 @@ async def startup_event():
         await user_repo.initialize_repo() 
     except Exception as e:
         logger.error(f"Failed to initialize repositories or create indexes: {e}")
+    
+    # --- ИЗМЕНЕНИЕ ---
+    # Переносим лог в конец, чтобы он отражал реальное завершение
+    logger.info("Application startup complete.")
+
 
 # Обработчик события "shutdown"
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Application shutdown...")
     await close_mongo_connection()
+    # --- ИЗМЕНЕНИЕ ---
+    # Убираем await, так как функция теперь синхронная
     close_clickhouse_connection()
+    # --- КОНЕЦ ИЗМЕНЕНИЯ ---
+    logger.info("Application shutdown complete.")
 
 # Настройка CORS middleware
 if settings.CORS_ORIGINS:
