@@ -7,21 +7,21 @@ from jose import jwt, JWTError
 from pydantic import ValidationError
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.config import settings
-from app.db.session import get_mongo_db, get_clickhouse_client
-from app.schemas.token_schemas import TokenDataSchema
-from app.schemas.user_schemas import UserSchema
-from app.repositories.user_repo import UserRepo
-from app.repositories.ontology_repo import OntologyRepo
-from app.repositories.data_lake_repo import DataLakeRepo
-from app.repositories.warehouse_repo import WarehouseRepo
-from app.services.auth_service import AuthService
-from app.services.ontology_service import OntologyService
-from app.services.file_processing_service import FileProcessingService
-from app.services.data_query_service import DataQueryService
+from core.config import settings
+from db.session import get_mongo_db, get_clickhouse_client
+from schemas.token_schemas import TokenDataSchema
+from schemas.user_schemas import UserSchema
+from repositories.user_repo import UserRepo
+from repositories.ontology_repo import OntologyRepo
+from repositories.data_lake_repo import DataLakeRepo
+from repositories.warehouse_repo import WarehouseRepo
+from services.auth_service import AuthService
+from services.ontology_service import OntologyService
+from services.file_processing_service import FileProcessingService
+from services.data_query_service import DataQueryService
 # --- НОВЫЕ ИМПОРТЫ ---
-from app.services.verification_service import VerificationService
-from app.services.admin_service import AdminService
+from services.verification_service import VerificationService
+from services.admin_service import AdminService
 
 
 # --- Схема OAuth2 ---

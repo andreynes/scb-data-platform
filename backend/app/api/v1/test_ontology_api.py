@@ -9,8 +9,8 @@ from fastapi import status
 # Для MVP можно пока не защищать эндпоинт, поэтому user_token_headers не нужен
 # from backend.app.tests.utils.user import user_token_headers # Если эндпоинт защищен
 
-from backend.app.core.config import settings
-from backend.app.schemas.ontology_schemas import OntologySchema # Для проверки типа ответа
+from core.config import settings
+from schemas.ontology_schemas import OntologySchema # Для проверки типа ответа
 
 # Путь к эндпоинту
 ONTOLOGY_SCHEMA_ENDPOINT = f"{settings.API_V1_STR}/ontology/schema"

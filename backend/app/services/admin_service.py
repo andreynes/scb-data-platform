@@ -2,13 +2,13 @@
 from typing import Dict, List
 
 # ИСПРАВЛЕНО: Правильное имя репозитория
-from app.repositories.data_lake_repo import DataLakeRepo
+from repositories.data_lake_repo import DataLakeRepo
 # ЗАКОММЕНТИРОВАНО: Клиент Airflow пока не реализован
 # from app.clients.airflow_client import AirflowClient 
-from app.services.verification_service import VerificationService
-from app.schemas.admin_schemas import ReparseRequestSchema
-from app.schemas.verification_schemas import VerificationResultSchema, VerificationTaskSchema
-from app.utils.logging_utils import get_logger
+from services.verification_service import VerificationService
+from schemas.admin_schemas import ReparseRequestSchema
+from schemas.verification_schemas import VerificationResultSchema, VerificationTaskSchema
+from utils.logging_utils import get_logger
 
 logger = get_logger(__name__)
 

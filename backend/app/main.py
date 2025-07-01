@@ -4,17 +4,17 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import settings
-from app.db.session import (
+from core.config import settings
+from db.session import (
     connect_to_mongo,
     close_mongo_connection,
     connect_to_clickhouse,
     close_clickhouse_connection,
     get_mongo_db
 )
-from app.repositories.user_repo import UserRepo
-from app.api.v1.api import api_router # Используем правильное имя
-from app.core.logging_config import setup_logging
+from repositories.user_repo import UserRepo
+from api.v1.api import api_router 
+from core.logging_config import setup_logging
 
 # Настройка логирования
 setup_logging()
@@ -33,7 +33,7 @@ app = FastAPI(
 async def startup_event():
     logger.info("Application startup...")
     await connect_to_mongo()
-    await connect_to_clickhouse()
+    connect_to_clickhouse()
     
     # Инициализация репозиториев и создание индексов
     try:
@@ -48,7 +48,7 @@ async def startup_event():
 async def shutdown_event():
     logger.info("Application shutdown...")
     await close_mongo_connection()
-    await close_clickhouse_connection()
+    close_clickhouse_connection()
 
 # Настройка CORS middleware
 if settings.CORS_ORIGINS:

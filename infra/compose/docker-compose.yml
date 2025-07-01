@@ -7,9 +7,8 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    env_file:
+      - ../../.env
     restart: always
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
@@ -26,11 +25,9 @@ services:
       - "8123:8123"
       - "9000:9000"
     volumes:
-      - clickhouse_data:/data/lib/clickhouse
-    environment:
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      - clickhouse_data:/var/lib/clickhouse
+    env_file:
+      - ../../.env
     restart: always
     ulimits:
       nofile:
@@ -48,18 +45,17 @@ services:
   backend:
     build:
       context: ../..
-      dockerfile: infra/docker/backend/Dockerfile
+      dockerfile: ./infra/docker/backend/Dockerfile
     container_name: scb_backend
-    # ИСПРАВЛЕНИЕ: Мы НЕ используем 'poetry run'. 
-    # Вызываем uvicorn напрямую.
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/app
-    volumes:
-      # Монтируем код для "горячей перезагрузки"
-      - ../../backend/app:/app/app
     ports:
       - "8000:8000"
+    # volumes:
+      # Монтируем код из backend/app напрямую в /app, чтобы соответствовать Dockerfile
+    #   - ../../backend/app:/app
+    environment:
+      - PYTHONPATH=/app
     env_file:
-      - .env
+      - ../../.env
     depends_on:
       mongo:
         condition: service_healthy
@@ -78,12 +74,10 @@ services:
       - "5173:5173"
     volumes:
       - ../../frontend:/app
-      - /app/node_modules
+      - frontend_node_modules:/app/node_modules
     env_file:
-      - .env
+      - ../../.env
     command: npm run dev -- --host
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     restart: always
     depends_on:
       - backend
@@ -95,14 +89,12 @@ services:
     image: postgres:13
     container_name: scb_airflow_postgres
     restart: always
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-airflow}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
-      POSTGRES_DB: ${POSTGRES_DB:-airflow}
+    env_file:
+      - ../../.env
     volumes:
       - airflow_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-airflow} -d $${POSTGRES_DB:-airflow}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -120,15 +112,14 @@ services:
       retries: 5
     networks:
       - scb_network
-
+  
   airflow-init:
-    profiles: ["setup"]
     build:
       context: ../..
       dockerfile: ./infra/docker/etl/Dockerfile
     container_name: scb_airflow_init
     env_file:
-      - .env
+      - ../../.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -146,7 +137,7 @@ services:
     container_name: scb_airflow_webserver
     restart: always
     env_file:
-      - .env
+      - ../../.env
     ports:
       - "8080:8080"
     volumes:
@@ -174,13 +165,13 @@ services:
     container_name: scb_airflow_scheduler
     restart: always
     env_file:
-      - .env
+      - ../../.env
     volumes:
       - ../../etl/dags:/opt/airflow/dags
       - ../../etl/src:/opt/airflow/etl_src
     depends_on:
       airflow-webserver:
-        condition: service_healthy # Эта зависимость теперь будет работать надежнее
+        condition: service_healthy
     command: scheduler
     networks:
       - scb_network
@@ -192,7 +183,7 @@ services:
     container_name: scb_airflow_worker
     restart: always
     env_file:
-      - .env
+      - ../../.env
     volumes:
       - ../../etl/dags:/opt/airflow/dags
       - ../../etl/src:/opt/airflow/etl_src
@@ -208,6 +199,7 @@ volumes:
   clickhouse_data:
   airflow_postgres_data:
   airflow_logs:
+  frontend_node_modules:
 
 networks:
   scb_network:

@@ -3,11 +3,12 @@
 from typing import List
 from fastapi import APIRouter, Depends, UploadFile, File
 
-# Импортируем схемы и зависимости, которые нам понадобятся
-from ....schemas.file_schemas import FileUploadStatusSchema
-from ....schemas.user_schemas import UserSchema
-from ....services.file_processing_service import FileProcessingService
-from ..deps import get_current_active_user, get_file_processing_service
+# --- ИСПРАВЛЕННЫЕ ИМПОРТЫ ---
+# Используем абсолютные пути от корня проекта (/app)
+from schemas.file_schemas import FileUploadStatusSchema
+from schemas.user_schemas import UserSchema
+from services.file_processing_service import FileProcessingService
+from api.v1.deps import get_current_active_user, get_file_processing_service
 
 router = APIRouter()
 

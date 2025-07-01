@@ -4,10 +4,10 @@ import io
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import StreamingResponse
 
-from app.schemas.data_schemas import DataQuerySchema, DataQueryResponseSchema, ExportFormat
-from app.schemas.user_schemas import UserSchema
-from app.services.data_query_service import DataQueryService
-from app.api.v1.deps import get_current_active_user, get_data_query_service
+from schemas.data_schemas import DataQuerySchema, DataQueryResponseSchema, ExportFormat
+from schemas.user_schemas import UserSchema
+from services.data_query_service import DataQueryService
+from api.v1.deps import get_current_active_user, get_data_query_service
 
 logger = logging.getLogger(__name__)
 

@@ -19,8 +19,12 @@ export type OpenAPIConfig = {
     ENCODE_PATH?: ((path: string) => string) | undefined;
 };
 
+// --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+// Мы жестко прописываем базовый URL для API бэкенда.
+// Это гарантирует, что все API-запросы с фронтенда будут идти на правильный адрес (порт 8000)
+// во время локальной разработки.
 export const OpenAPI: OpenAPIConfig = {
-    BASE: '',
+    BASE: 'http://localhost:8000', 
     VERSION: '1.0.0',
     WITH_CREDENTIALS: false,
     CREDENTIALS: 'include',

@@ -1,7 +1,7 @@
 # backend/tests/schemas/test_ontology_schemas.py
 import pytest
 from pydantic import ValidationError
-from backend.app.schemas.ontology_schemas import OntologyAttribute, OntologySchema
+from schemas.ontology_schemas import OntologyAttribute, OntologySchema
 
 def test_create_ontology_attribute_valid():
     attr_data = {

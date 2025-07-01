@@ -1,26 +1,13 @@
-# infra/docker/backend/Dockerfile
-
-# --- Этап 1: Сборщик зависимостей ---
-FROM python:3.10-slim as builder
-
-RUN pip install poetry
-WORKDIR /app
-COPY backend/pyproject.toml backend/poetry.lock* ./
-RUN poetry config virtualenvs.in-project true
-RUN poetry install --without dev --sync --no-root
-
-
-# --- Этап 2: Финальный образ ---
+# Простой и надежный Dockerfile
 FROM python:3.10-slim
 
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
 WORKDIR /app
 
-# Копируем .venv и код
-COPY --from=builder /app/.venv ./.venv
-COPY backend/ ./
+COPY ./backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Устанавливаем PATH, чтобы uvicorn был доступен
-ENV PATH="/app/.venv/bin:$PATH"
-
-# Команда по умолчанию
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY ./backend/app /app
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

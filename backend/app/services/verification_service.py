@@ -1,14 +1,14 @@
 # backend/app/services/verification_service.py
 from typing import List, Optional
 
-from app.repositories.data_lake_repo import DataLakeRepo
-from app.repositories.warehouse_repo import WarehouseRepo
-from app.schemas.verification_schemas import (
+from repositories.data_lake_repo import DataLakeRepo
+from repositories.warehouse_repo import WarehouseRepo
+from schemas.verification_schemas import (
     VerificationDataSchema,
     VerificationResultSchema,
     VerificationTaskSchema,
 )
-from app.utils.logging_utils import get_logger
+from utils.logging_utils import get_logger
 
 logger = get_logger(__name__)
 

@@ -5,7 +5,7 @@ from typing import Optional, Any, Union
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 
-from app.core.config import settings
+from core.config import settings
 
 # Контекст для хэширования паролей (используем bcrypt)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

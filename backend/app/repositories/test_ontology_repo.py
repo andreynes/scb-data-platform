@@ -3,7 +3,7 @@ import pytest
 from mongomock_motor import AsyncMongoMockClient # Для асинхронного mongomock
 # Если синхронно: from mongomock import MongoClient
 
-from backend.app.repositories.ontology_repo import (
+from repositories.ontology_repo import (
     OntologyRepo,
     ONTOLOGY_STATUS_COLLECTION,
     ONTOLOGY_SCHEMAS_COLLECTION

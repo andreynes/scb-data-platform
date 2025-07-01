@@ -5,10 +5,10 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from fastapi import UploadFile
 
-from app.repositories.data_lake_repo import DataLakeRepo
-from app.schemas.file_schemas import FileUploadStatusSchema # Схема ответа
-from app.schemas.user_schemas import UserSchema # Для информации о загрузившем
-# from app.clients.airflow_client import AirflowClient # Если у вас есть отдельный Airflow клиент
+from repositories.data_lake_repo import DataLakeRepo
+from schemas.file_schemas import FileUploadStatusSchema # Схема ответа
+from schemas.user_schemas import UserSchema # Для информации о загрузившем
+# from clients.airflow_client import AirflowClient # Если у вас есть отдельный Airflow клиент
 # Для MVP можно использовать простой HTTP запрос к Airflow API или пока заглушку
 
 logger = logging.getLogger(__name__)

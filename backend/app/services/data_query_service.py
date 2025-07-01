@@ -5,22 +5,22 @@ import pandas as pd
 import io
 
 # Импорт репозиториев
-from app.repositories.warehouse_repo import WarehouseRepo
-from app.repositories.data_lake_repo import DataLakeRepo
+from repositories.warehouse_repo import WarehouseRepo
+from repositories.data_lake_repo import DataLakeRepo
 
 # Импорт сервисов
-from app.services.ontology_service import OntologyService
+from services.ontology_service import OntologyService
 
 # Импорт схем
-from app.schemas.data_schemas import (
+from schemas.data_schemas import (
     DataQuerySchema, 
     DataQueryResponseSchema,
     ExportFormat # <<< НОВЫЙ ИМПОРТ
 )
-from app.schemas.user_schemas import UserSchema
+from schemas.user_schemas import UserSchema
 
 # Импорт логгера
-from app.utils.logging_utils import get_logger
+from utils.logging_utils import get_logger
 
 logger = get_logger(__name__)
 

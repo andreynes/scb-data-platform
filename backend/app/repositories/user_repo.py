@@ -8,7 +8,7 @@ from pymongo import IndexModel, ASCENDING
 from datetime import datetime
 from bson import ObjectId # <-- ВАЖНЫЙ ИМПОРТ
 
-from app.schemas.user_schemas import UserInDB, UserCreateSchema
+from schemas.user_schemas import UserInDB, UserCreateSchema
 
 logger = logging.getLogger(__name__)
 

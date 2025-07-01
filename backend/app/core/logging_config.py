@@ -1,7 +1,7 @@
 # backend/app/core/logging_config.py
 import logging
 import sys
-from app.core.config import settings # Предполагаем, что settings уже импортируются
+from core.config import settings 
 
 # Уровни логирования для стандартных библиотек, которые могут быть слишком "шумными"
 # Uvicorn логирует доступ, его можно оставить на INFO или поднять до WARNING, если логов слишком много

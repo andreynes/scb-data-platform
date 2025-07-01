@@ -4,18 +4,18 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 # ИСПРАВЛЕНЫ ИМПОРТЫ: убираем 'backend.'
-from app.schemas.admin_schemas import (
+from schemas.admin_schemas import (
     ReparseRequestSchema,
     ReparseResponseSchema,
 )
-from app.schemas.user_schemas import UserSchema
-from app.schemas.verification_schemas import (
+from schemas.user_schemas import UserSchema
+from schemas.verification_schemas import (
     VerificationDataSchema,
     VerificationResultSchema,
     VerificationTaskSchema,
 )
-from app.services.admin_service import AdminService
-from app.api.v1.deps import get_admin_service, get_current_admin_user
+from services.admin_service import AdminService
+from api.v1.deps import get_admin_service, get_current_admin_user
 
 # Теги уже были добавлены, здесь все в порядке
 router = APIRouter()

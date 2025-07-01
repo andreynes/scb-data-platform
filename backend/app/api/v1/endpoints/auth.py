@@ -4,11 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Any
 
-from app.schemas.token_schemas import TokenSchema
-from app.schemas.user_schemas import UserSchema, UserCreateSchema
-from app.services.auth_service import AuthService
-from app.api.v1.deps import get_auth_service, get_current_active_user
-from app.services.exceptions import UserAlreadyExistsError, InvalidCredentialsError
+from schemas.token_schemas import TokenSchema
+from schemas.user_schemas import UserSchema, UserCreateSchema
+from services.auth_service import AuthService
+from api.v1.deps import get_auth_service, get_current_active_user
+from services.exceptions import UserAlreadyExistsError, InvalidCredentialsError
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

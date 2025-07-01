@@ -2,9 +2,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Optional
 
-from app.services.ontology_service import OntologyService 
-from app.schemas.ontology_schemas import OntologySchema
-from app.api.v1.deps import get_ontology_service
+from services.ontology_service import OntologyService 
+from schemas.ontology_schemas import OntologySchema
+from api.v1.deps import get_ontology_service
 
 # УБИРАЕМ `tags` ОТСЮДА
 router = APIRouter()

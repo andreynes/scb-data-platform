@@ -3,9 +3,9 @@ import pytest
 from unittest.mock import AsyncMock # Для мокирования асинхронных методов
 # Если синхронно: from unittest.mock import Mock
 
-from backend.app.services.ontology_service import OntologyService
-from backend.app.repositories.ontology_repo import OntologyRepo # Нужен для type hinting мока
-from backend.app.schemas.ontology_schemas import OntologySchema, OntologyAttribute
+from services.ontology_service import OntologyService
+from repositories.ontology_repo import OntologyRepo # Нужен для type hinting мока
+from schemas.ontology_schemas import OntologySchema, OntologyAttribute
 
 @pytest.mark.asyncio
 async def test_get_current_ontology_schema_success():
