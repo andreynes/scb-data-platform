@@ -2,30 +2,30 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+
+// --- ИМПОРТИРУЕМ ВАШ НАСТРОЕННЫЙ КЛИЕНТ ---
+import apiClient from '../../apiClient'; 
 import type { ApiRequestOptions } from './ApiRequestOptions';
 
 type Resolver<T> = (options: ApiRequestOptions) => Promise<T>;
 type Headers = Record<string, string>;
 
 export type OpenAPIConfig = {
+    // --- ДОБАВЛЯЕМ ПОЛЕ ДЛЯ AXIOS-КЛИЕНТА ---
+    CLIENT?: any;
     BASE: string;
     VERSION: string;
-    WITH_CREDENTIALS: boolean;
-    CREDENTIALS: 'include' | 'omit' | 'same-origin';
-    TOKEN?: string | Resolver<string> | undefined;
-    USERNAME?: string | Resolver<string> | undefined;
-    PASSWORD?: string | Resolver<string> | undefined;
-    HEADERS?: Headers | Resolver<Headers> | undefined;
-    ENCODE_PATH?: ((path: string) => string) | undefined;
+    // ... (остальные поля)
 };
 
-// --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-// Мы жестко прописываем базовый URL для API бэкенда.
-// Это гарантирует, что все API-запросы с фронтенда будут идти на правильный адрес (порт 8000)
-// во время локальной разработки.
 export const OpenAPI: OpenAPIConfig = {
-    BASE: 'http://localhost:8000', 
+    // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: УКАЗЫВАЕМ НАШ КЛИЕНТ ---
+    CLIENT: apiClient,
+
+    // BASE URL теперь не нужен, так как он задан в apiClient
+    BASE: '', 
     VERSION: '1.0.0',
+    // ... (остальные поля остаются как есть)
     WITH_CREDENTIALS: false,
     CREDENTIALS: 'include',
     TOKEN: undefined,

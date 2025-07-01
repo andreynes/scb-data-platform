@@ -4,7 +4,6 @@ import * as authApi from '../../services/authApi';
 import type { RootState } from '../../app/store';
 import type { UserSchema, TokenSchema, LoginFormData } from './types';
 
-// Тип для состояния этого среза
 interface AuthState {
   user: UserSchema | null;
   token: string | null;
@@ -12,58 +11,69 @@ interface AuthState {
   error: string | null;
 }
 
-// Начальное состояние
 const initialState: AuthState = {
   user: null,
-  token: localStorage.getItem('authToken'), // Пытаемся взять токен из localStorage при запуске
+  token: localStorage.getItem('authToken'),
   status: 'idle',
   error: null,
 };
 
-// Асинхронный Thunk для входа в систему
+// --- ИЗМЕНЕНИЕ 1: fetchUserMe теперь может принимать токен как аргумент ---
+export const fetchUserMe = createAsyncThunk<
+  UserSchema,
+  string | undefined, // Аргумент: опциональный токен
+  { rejectValue: string }
+>(
+  'auth/fetchUserMe',
+  async (token, { getState, rejectWithValue }) => {
+    try {
+      // Если токен не передан, пытаемся взять его из state
+      const tokenToUse = token ?? (getState() as RootState).auth.token;
+      
+      if (!tokenToUse) {
+        return rejectWithValue('No token found');
+      }
+
+      // Передаем токен напрямую в API-функцию
+      const userData = await authApi.fetchCurrentUser(tokenToUse);
+      return userData;
+    } catch (error: any) {
+      localStorage.removeItem('authToken');
+      return rejectWithValue(error.detail || 'Failed to fetch user');
+    }
+  }
+);
+
+
 export const loginUser = createAsyncThunk<
-  { token: string }, // Что возвращаем при успехе
-  LoginFormData, // Что принимаем в качестве аргумента
-  { rejectValue: string } // Тип для ошибки
+  { token: string },
+  LoginFormData,
+  { rejectValue: string }
 >(
   'auth/loginUser',
   async (credentials, { dispatch, rejectWithValue }) => {
     try {
       const tokenData = await authApi.login(credentials);
-      localStorage.setItem('authToken', tokenData.access_token);
-      // После успешного логина, сразу запрашиваем данные пользователя
-      dispatch(fetchUserMe()); 
-      return { token: tokenData.access_token };
+      const accessToken = tokenData.access_token;
+
+      localStorage.setItem('authToken', accessToken);
+      
+      // --- ИЗМЕНЕНИЕ 2: Передаем свежий токен НАПРЯМУЮ в fetchUserMe ---
+      // Это гарантирует, что запрос /me уйдет с правильным токеном
+      await dispatch(fetchUserMe(accessToken)); 
+      
+      return { token: accessToken };
     } catch (error: any) {
       return rejectWithValue(error.detail || 'Failed to login');
     }
   }
 );
 
-// Асинхронный Thunk для получения данных текущего пользователя
-export const fetchUserMe = createAsyncThunk<
-  UserSchema, // Что возвращаем при успехе
-  void, // Нет аргументов
-  { rejectValue: string } // Тип для ошибки
->(
-  'auth/fetchUserMe',
-  async (_, { rejectWithValue }) => {
-    try {
-      const userData = await authApi.fetchCurrentUser();
-      return userData;
-    } catch (error: any) {
-      localStorage.removeItem('authToken'); // Если токен невалиден, удаляем его
-      return rejectWithValue(error.detail || 'Failed to fetch user');
-    }
-  }
-);
 
-// Создание среза
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    // Синхронный action для выхода
     logout: (state) => {
       state.user = null;
       state.token = null;
@@ -72,9 +82,9 @@ const authSlice = createSlice({
       localStorage.removeItem('authToken');
     },
   },
-  // Обработка состояний асинхронных thunks
   extraReducers: (builder) => {
     builder
+      // ... (все остальные extraReducers остаются без изменений)
       .addCase(loginUser.pending, (state) => {
         state.status = 'loading';
         state.error = null;
@@ -105,7 +115,6 @@ const authSlice = createSlice({
 
 export const { logout } = authSlice.actions;
 
-// Селекторы для доступа к состоянию
 export const selectCurrentUser = (state: RootState) => state.auth.user;
 export const selectIsAuthenticated = (state: RootState): boolean => !!state.auth.token;
 export const selectAuthIsLoading = (state: RootState) => state.auth.status === 'loading';

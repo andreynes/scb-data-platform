@@ -12,7 +12,7 @@ import {
  * @param credentials - Имя пользователя и пароль.
  * @returns Promise, который разрешается объектом TokenSchema.
  */
-export const login = async (credentials: LoginCredentials): Promise<TokenSchema> => {
+export const login = async (credentials: LoginFormData): Promise<TokenSchema> => {
   try {
     //
     // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
@@ -35,15 +35,15 @@ export const login = async (credentials: LoginCredentials): Promise<TokenSchema>
  * Токен аутентификации должен быть добавлен автоматически конфигурацией OpenAPI клиента.
  * @returns Promise, который разрешается объектом UserSchema.
  */
-export const fetchCurrentUser = async (): Promise<UserSchema> => {
-  try {
-    // Вызываем соответствующий сгенерированный метод
-    const userData = await AuthService.readUsersMeApiV1AuthMeGet();
-    return userData;
-  } catch (error) {
-    console.error("Fetch current user API error:", error);
-    throw error;
-  }
+
+export const fetchCurrentUser = async (token: string): Promise<UserSchema> => {
+  // Мы больше не полагаемся на interceptor, а явно передаем токен
+  const response = await apiClient.get<UserSchema>('/auth/me', {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+  return response.data;
 };
 
 // Примечание: Функция для регистрации (registerUser) может быть добавлена здесь по аналогии, если она потребуется.
