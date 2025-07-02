@@ -1,13 +1,18 @@
-// frontend/src/main.tsx
+// frontend/src/main.tsx (ФИНАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ)
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-// 1. Импортируем Provider из react-redux
+// 1. Для Redux
 import { Provider } from 'react-redux';
-// 2. Импортируем наш Redux store
 import { store } from './app/store';
 
+// 2. Для Роутинга
+import { BrowserRouter } from 'react-router-dom';
+
+
+
+// 4. Главный компонент приложения
 import App from './app/App';
 
 const rootElement = document.getElementById('root');
@@ -19,9 +24,12 @@ const root = ReactDOM.createRoot(rootElement);
 
 root.render(
   <React.StrictMode>
-    {/* 3. Оборачиваем все приложение в Provider и передаем ему store */}
+    {/* Оборачиваем все приложение в Provider для Redux */}
     <Provider store={store}>
-      <App />
+      {/* Оборачиваем все приложение в BrowserRouter для роутинга */}
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
     </Provider>
   </React.StrictMode>
 );

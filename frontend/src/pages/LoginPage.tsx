@@ -1,11 +1,12 @@
 // frontend/src/pages/LoginPage.tsx
-import React, { useEffect } from 'react';
+
+import React, { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LoginForm } from '../features/auth/components/LoginForm'; // <-- ИСПРАВЛЕННЫЙ ПУТЬ
-import { useAuth } from '../features/auth/hooks/useAuth'; // <-- ИСПРАВЛЕННЫЙ ПУТЬ
-import { LoginFormData } from '../features/auth/types'; // <-- ИСПРАВЛЕННЫЙ ПУТЬ
-import { useAppSelector } from '../app/hooks'; // <-- Добавил для проверки статуса
-import { selectIsAuthenticated } from '../features/auth/slice'; // <-- Добавил для проверки статуса
+import { LoginForm } from '../features/auth/components/LoginForm';
+import { useAuth } from '../features/auth/hooks/useAuth';
+import { LoginFormData } from '../features/auth/types';
+import { useAppSelector } from '../app/hooks';
+import { selectIsAuthenticated } from '../features/auth/slice';
 
 const LoginPage: React.FC = () => {
   const { login, isLoading, error } = useAuth();
@@ -13,30 +14,23 @@ const LoginPage: React.FC = () => {
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
   useEffect(() => {
-    // Если пользователь уже залогинен, перенаправляем его с этой страницы
     if (isAuthenticated) {
       navigate('/', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
-
-  const handleLoginSubmit = async (data: LoginFormData) => {
-    try {
-      await login(data);
-      // После успешного вызова login, useEffect выше должен будет сработать и перенаправить
-    } catch (err) {
-      // Ошибка будет обработана и отображена через 'error' из хука useAuth
-      console.error("Login failed on page:", err);
-    }
-  };
-  
-  return (
-    <LoginForm 
-      onSubmit={handleLoginSubmit} 
-      isLoading={isLoading} 
-      error={error} 
-    />
+  const handleLoginSubmit = useCallback(
+    async (data: LoginFormData) => {
+      try {
+        await login(data);
+      } catch (err) {
+        // Ошибка уже обрабатывается в slice, здесь можно не логировать
+      }
+    },
+    [login]
   );
+
+  return <LoginForm onSubmit={handleLoginSubmit} isLoading={isLoading} error={error} />;
 };
 
 export default LoginPage;

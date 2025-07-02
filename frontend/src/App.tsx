@@ -1,27 +1,39 @@
-// frontend/src/App.tsx (или frontend/src/app/App.tsx)
-import React from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import React, { useEffect } from 'react'; // Убедитесь, что useEffect импортирован
 import { Provider } from 'react-redux';
-import { store } from './app/store'; // Предполагая, что store.ts в app/
-import { AppRouter } from './app/router'; // <-- ИМПОРТ AppRouter
-import { ConfigProvider, App as AntApp } from 'antd'; // AntApp для message, notification
-// import ruRU from 'antd/locale/ru_RU'; // Если нужна локализация AntD
-// import { antThemeConfig } from './styles/theme'; // Если есть тема
+import { ConfigProvider } from 'antd';
+import { BrowserRouter } from 'react-router-dom';
+import { store } from './app/store';
+import { AppRouter } from './app/router';
+import { useAppDispatch, useAppSelector } from './app/hooks'; // Предполагаем, что хуки вынесены
+import { fetchUserMe, selectAuthToken, selectCurrentUser } from './features/auth/slice';
+
+// Вспомогательный компонент, чтобы иметь доступ к Redux store
+function AppContent() {
+  const dispatch = useAppDispatch();
+  const token = useAppSelector(selectAuthToken);
+  const user = useAppSelector(selectCurrentUser);
+
+  // --- КЛЮЧЕВОЕ ДОБАВЛЕНИЕ ---
+  useEffect(() => {
+    // Если есть токен, но нет данных пользователя, пытаемся их загрузить
+    if (token && !user) {
+      dispatch(fetchUserMe());
+    }
+  }, [token, user, dispatch]);
+  // -------------------------
+
+  return <AppRouter />;
+}
 
 function App() {
   return (
-    <React.StrictMode>
-      <Provider store={store}>
-        {/* <ConfigProvider locale={ruRU} theme={antThemeConfig}> */}
-        <ConfigProvider> {/* Упрощенный ConfigProvider */}
-          <AntApp> {/* Обертка для message, notification, Modal.confirm из AntD */}
-            <BrowserRouter>
-              <AppRouter /> {/* <-- ИСПОЛЬЗОВАНИЕ AppRouter */}
-            </BrowserRouter>
-          </AntApp>
-        </ConfigProvider>
-      </Provider>
-    </React.StrictMode>
+    <Provider store={store}>
+      <ConfigProvider /* ...ваши настройки темы... */>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </ConfigProvider>
+    </Provider>
   );
 }
 

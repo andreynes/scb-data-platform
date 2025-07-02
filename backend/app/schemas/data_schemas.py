@@ -1,4 +1,4 @@
-# backend/app/schemas/data_schemas.py
+# Файл: backend/app/schemas/data_schemas.py
 
 from enum import Enum
 from pydantic import BaseModel, Field
@@ -6,7 +6,8 @@ from typing import List, Optional, Any, Dict
 from datetime import date
 import uuid
 
-# --- Это просто примеры, их можно будет удалить или доработать ---
+# --- Схемы для параметров запроса ---
+
 class FilterCondition(BaseModel):
     field: str
     operator: str
@@ -24,30 +25,31 @@ class PaginationParams(BaseModel):
     page: int = 1
     pageSize: int = 50
 
-# --- > ВАЖНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ < ---
-# Упрощаем AtomicDataRow, чтобы избежать ошибок при динамическом создании
-# Теперь это просто словарь, который принимает любые ключи
+# Схема для тела запроса /data/query
+class DataQuerySchema(BaseModel):
+    # -> ИЗМЕНЕНО: Поле стало обязательным. Убираем Optional и значение по умолчанию.
+    document_id: str 
+    filters: Optional[List[FilterCondition]] = []
+    aggregations: Optional[List[AggregationRule]] = []
+    columns: Optional[List[str]] = []
+    sort: Optional[List[SortRule]] = []
+    pagination: Optional[PaginationParams] = None
+
+# --- Схемы для ответов API ---
+
+# Используем extra = 'allow' для гибкости, чтобы новые поля в онтологии не ломали схему.
 class AtomicDataRow(BaseModel):
     original_document_id: str
     ontology_version: str
     
     class Config:
-        extra = 'allow' # Разрешаем любые другие поля
+        extra = 'allow'
 
 class PaginationInfo(BaseModel):
     currentPage: int
     pageSize: int
     totalItems: int
     totalPages: int
-
-# Схема для тела запроса /data/query
-class DataQuerySchema(BaseModel):
-    document_id: Optional[str] = None
-    filters: Optional[List[FilterCondition]] = []
-    aggregations: Optional[List[AggregationRule]] = []
-    columns: Optional[List[str]] = []
-    sort: Optional[List[SortRule]] = []
-    pagination: Optional[PaginationParams] = None
 
 # Схема для ответа API /data/query
 class DataQueryResponseSchema(BaseModel):

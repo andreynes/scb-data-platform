@@ -11,9 +11,6 @@ import { request as __request } from '../core/request';
 export class DataService {
     /**
      * Запрос атомарных данных из СКЛАДА
-     * Принимает ID документа и возвращает все связанные с ним атомарные записи данных из СКЛАДА (ClickHouse).
-     *
-     * Требует аутентификации.
      * @returns DataQueryResponseSchema Successful Response
      * @throws ApiError
      */
@@ -28,17 +25,12 @@ export class DataService {
             body: requestBody,
             mediaType: 'application/json',
             errors: {
-                404: `Данные для указанного ID документа не найдены`,
                 422: `Validation Error`,
-                500: `Внутренняя ошибка сервера`,
             },
         });
     }
     /**
      * Запрос атомарных данных из СКЛАДА
-     * Принимает ID документа и возвращает все связанные с ним атомарные записи данных из СКЛАДА (ClickHouse).
-     *
-     * Требует аутентификации.
      * @returns DataQueryResponseSchema Successful Response
      * @throws ApiError
      */
@@ -53,15 +45,12 @@ export class DataService {
             body: requestBody,
             mediaType: 'application/json',
             errors: {
-                404: `Данные для указанного ID документа не найдены`,
                 422: `Validation Error`,
-                500: `Внутренняя ошибка сервера`,
             },
         });
     }
     /**
-     * Экспорт данных в файл
-     * Формирует и возвращает файл (Excel или CSV) с данными по заданным параметрам запроса.
+     * Export Data
      * @returns any Successful Response
      * @throws ApiError
      */
@@ -84,15 +73,12 @@ export class DataService {
             body: requestBody,
             mediaType: 'application/json',
             errors: {
-                404: `Данные для экспорта по указанным параметрам не найдены`,
                 422: `Validation Error`,
-                500: `Внутренняя ошибка сервера при создании файла`,
             },
         });
     }
     /**
-     * Экспорт данных в файл
-     * Формирует и возвращает файл (Excel или CSV) с данными по заданным параметрам запроса.
+     * Export Data
      * @returns any Successful Response
      * @throws ApiError
      */
@@ -115,15 +101,12 @@ export class DataService {
             body: requestBody,
             mediaType: 'application/json',
             errors: {
-                404: `Данные для экспорта по указанным параметрам не найдены`,
                 422: `Validation Error`,
-                500: `Внутренняя ошибка сервера при создании файла`,
             },
         });
     }
     /**
-     * Пометить документ для ручной верификации ("Тревожная кнопка")
-     * Устанавливает документу статус 'Needs Verification', чтобы он появился в очереди на проверку у Мейнтейнера. Требует аутентификации.
+     * Flag For Verification
      * @returns any Successful Response
      * @throws ApiError
      */
@@ -139,14 +122,12 @@ export class DataService {
                 'document_id': documentId,
             },
             errors: {
-                404: `Документ с указанным ID не найден`,
                 422: `Validation Error`,
             },
         });
     }
     /**
-     * Пометить документ для ручной верификации ("Тревожная кнопка")
-     * Устанавливает документу статус 'Needs Verification', чтобы он появился в очереди на проверку у Мейнтейнера. Требует аутентификации.
+     * Flag For Verification
      * @returns any Successful Response
      * @throws ApiError
      */
@@ -162,7 +143,6 @@ export class DataService {
                 'document_id': documentId,
             },
             errors: {
-                404: `Документ с указанным ID не найден`,
                 422: `Validation Error`,
             },
         });

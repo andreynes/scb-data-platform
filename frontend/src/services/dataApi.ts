@@ -1,67 +1,57 @@
-// frontend/src/services/dataApi.ts
-
-// ИСПРАВЛЕНО: Используем правильное имя сервиса 'DataService'
-import { 
-  DataService, // <--- ВОТ ГЛАВНОЕ ИСПРАВЛЕНИЕ
-  type DataQuerySchema, 
-  type DataQueryResponseSchema,
-  type ExportFormat 
+import { apiClient } from './apiClient';
+import type { 
+  DataQuerySchema, 
+  DataQueryResponseSchema,
+  ExportFormat,
+  ExportResponseSchema
 } from './generated';
 
 /**
- * Выполняет запрос данных к СКЛАДА.
+ * Выполняет запрос данных к СКЛАДУ.
  */
 export const fetchDataQuery = async (queryParams: DataQuerySchema): Promise<DataQueryResponseSchema> => {
   try {
-    // Вызываем метод у правильного сервиса DataService
-    const response = await DataService.queryDataApiV1DataQueryPost({
-      requestBody: queryParams,
-    });
-    return response;
+    const response = await apiClient.post('/data/query', queryParams);
+    return response.data;
   } catch (error) {
     console.error("Data query API error:", error);
-    throw error; 
-  }
-};
-
-/**
- * Инициирует асинхронный экспорт данных и возвращает Blob.
- */
-export const startDataExport = async (
-  queryParams: DataQuerySchema,
-  format: ExportFormat
-): Promise<Blob | null> => {
-  try {
-    // Вызываем метод у правильного сервиса DataService
-    const response = await DataService.exportDataApiV1DataExportPost({
-      requestBody: queryParams,
-      format: format,
-    });
-    if (response instanceof Blob) {
-      return response;
-    }
-    return null;
-  } catch (error)
-  {
-    console.error("Data export API error:", error);
     throw error;
   }
 };
 
 /**
- * Помечает документ для ручной верификации ("тревожная кнопка").
+ * Инициирует асинхронный экспорт данных.
  */
-export const flagDocumentForVerification = async (
-  documentId: string
-): Promise<any> => {
+export const startDataExport = async (queryParams: DataQuerySchema, format: ExportFormat): Promise<ExportResponseSchema | void> => {
   try {
-    // Вызываем метод у правильного сервиса DataService
-    const response = await DataService.flagForVerificationApiV1DataDocumentIdFlagForVerificationPost({
-      documentId,
-    });
-    return response;
+    const response = await apiClient.post(`/data/export?format=${format}`, queryParams);
+    return response.data;
   } catch (error) {
-    console.error(`Failed to flag document ${documentId} for verification:`, error);
+    console.error("Data export API error:", error);
+    throw error;
+  }
+};
+
+// === НОВАЯ ФУНКЦИЯ ДЛЯ "ТРЕВОЖНОЙ КНОПКИ" ===
+/**
+ * Помечает документ как требующий верификации.
+ * @param documentId ID документа для пометки.
+ */
+export const flagDocumentForVerification = async (documentId: string): Promise<void> => {
+  if (!documentId) {
+    console.error("flagDocumentForVerification: documentId is required.");
+    // Можно выбросить ошибку или просто ничего не делать
+    return Promise.reject(new Error("Document ID is required."));
+  }
+  
+  try {
+    // В ТЗ 3.5.4 указано, что "Тревожная кнопка" инициирует проверку.
+    // Эндпоинт для этого, согласно нашему плану, должен быть на бэкенде.
+    // POST /data/{document_id}/flag-for-verification
+    // Предположим такой URL для API:
+    await apiClient.post(`/data/${documentId}/flag-for-verification`);
+  } catch (error) {
+    console.error(`Error flagging document ${documentId} for verification:`, error);
     throw error;
   }
 };

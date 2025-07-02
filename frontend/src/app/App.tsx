@@ -1,13 +1,13 @@
+// frontend/src/app/App.tsx (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+
 import React from 'react';
-import { BrowserRouter } from 'react-router-dom';
+// Убираем импорт BrowserRouter, он нам здесь больше не нужен
 import { AppRouter } from './router';
 
 function App() {
   return (
-    <BrowserRouter>
-      {/* В будущем здесь будет компонент MainLayout */}
-      <AppRouter />
-    </BrowserRouter>
+    // Просто возвращаем AppRouter, без лишней обертки
+    <AppRouter />
   );
 }
 

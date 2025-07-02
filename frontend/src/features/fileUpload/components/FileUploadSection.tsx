@@ -1,51 +1,40 @@
-// frontend/src/features/fileUpload/components/FileUploadSection.tsx
+// Файл: frontend/src/features/fileUpload/components/FileUploadSection.tsx
 
 import React from 'react';
-import { Button, Space } from 'antd'; // Добавил Space и Button для удобства
-
-// ПРАВИЛЬНЫЙ ИМПОРТ: Мы изменили этот файл на именованный экспорт
-import { FileUploadDropzone } from './FileUploadDropzone'; 
-
-// ПРАВИЛЬНЫЙ ИМПОРТ: А этот файл, скорее всего, всё еще использует экспорт по умолчанию
-import FileUploadList from './FileUploadList'; 
-
-// ПРАВИЛЬНЫЙ ИМПОРТ: Хуки часто экспортируются как именованные
+import FileUploadDropzone from './FileUploadDropzone';
+// === ИЗМЕНЕНО: Используем именованный импорт, если экспорт не дефолтный ===
+import { FileUploadList } from './FileUploadList'; 
 import { useFileUploadManager } from '../hooks/useFileUploadManager';
 
-// Экспортируем этот компонент тоже как именованный для единообразия
-export const FileUploadSection = () => {
-    // Получаем все необходимые данные и функции из нашего хука-менеджера
-    const { 
-        uploads, 
-        handleUploadStart, 
-        clearCompleted,
-        // Можно добавить и другие хендлеры, если хук их предоставляет
-    } = useFileUploadManager();
+interface FileUploadSectionProps {
+    onUploadSuccess: (docId: string, filename: string) => void;
+}
 
-    // Проверяем, есть ли завершенные (успешно или с ошибкой) загрузки
-    const hasCompletedUploads = uploads.some(
-        (up) => up.status === 'success' || up.status === 'error'
-    );
+export const FileUploadSection: React.FC<FileUploadSectionProps> = ({ onUploadSuccess }) => {
+    const {
+        uploads,
+        handleUploadStart,
+        clearCompleted,
+    } = useFileUploadManager({ onUploadSuccess }); // Передаем колбэк в хук
 
     return (
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
-            {/* Компонент для выбора файлов */}
-            <FileUploadDropzone 
-                onUploadStart={handleUploadStart} 
-                // можно передать и другие пропсы, например, disabled={isLoading}
+        <div>
+            <FileUploadDropzone
+                onUploadStart={handleUploadStart}
+                // Передаем другие необходимые пропсы, если они есть
             />
-
-            {/* Компонент для отображения списка загружаемых файлов */}
             <FileUploadList uploads={uploads} />
-
-            {/* Кнопка для очистки списка, появляется только когда есть что очищать */}
-            {hasCompletedUploads && (
-                <div style={{ textAlign: 'right', marginTop: '16px' }}>
-                    <Button onClick={clearCompleted}>
-                        Очистить завершенные
-                    </Button>
-                </div>
+            {uploads.some(u => u.status === 'success' || u.status === 'error') && (
+                 <Button onClick={clearCompleted} style={{ marginTop: 16 }}>
+                    Очистить завершенные
+                 </Button>
             )}
-        </Space>
+        </div>
     );
 };
+
+// Важно: Убедитесь, что экспорт именованный
+// export default FileUploadSection; // НЕ так
+// А так:
+// В этом файле экспорт по умолчанию не нужен, так как он не главный файл фичи.
+// Поэтому мы оставим его без 'export default' и будем импортировать именовано.

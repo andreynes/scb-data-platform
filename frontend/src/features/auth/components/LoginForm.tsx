@@ -1,12 +1,11 @@
-// Путь: frontend/src/features/auth/components/LoginForm.tsx
+// frontend/src/features/auth/components/LoginForm.tsx (ФИНАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ)
 
 import React from 'react';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
-import { Form, Input, Button, Alert, Space } from 'antd';
+import { Form, Input, Button, Alert } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { LoginFormData } from '../types'; // Предполагаем, что этот тип существует
+import { LoginFormData } from '../types';
 
-// Определяем пропсы для нашего компонента
 interface LoginFormProps {
   onSubmit: (data: LoginFormData) => Promise<void> | void;
   isLoading: boolean;
@@ -14,34 +13,40 @@ interface LoginFormProps {
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading, error }) => {
-  // Инициализируем react-hook-form
   const {
-    control, // Важный объект для связи с UI-компонентами
-    handleSubmit, // Функция-обертка для отправки формы
-    formState: { errors }, // Объект с ошибками валидации
+    control,
+    handleSubmit,
+    formState: { errors },
+    // С помощью trigger мы можем запустить валидацию вручную
+    trigger,
   } = useForm<LoginFormData>({
-    mode: 'onSubmit', // Валидация при отправке
-    reValidateMode: 'onChange', // Повторная валидация при изменении
-    defaultValues: {
-      username: '',
-      password: '',
-    },
+    mode: 'onChange', // Меняем режим для более отзывчивой валидации
   });
 
-  // Этот обработчик будет вызван только после успешной валидации
+  // Эта функция остается такой же
   const handleFormSubmit: SubmitHandler<LoginFormData> = (data) => {
     onSubmit(data);
   };
 
   const isButtonDisabled = isLoading;
 
+  // ===== КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Новый обработчик для кнопки =====
+  // Эта функция будет вызвана при клике на нашу кнопку.
+  const handleButtonClick = async () => {
+    // 1. Сначала мы вручную запускаем валидацию всех полей.
+    const isValid = await trigger();
+
+    // 2. Если валидация прошла успешно...
+    if (isValid) {
+      // 3. ...то мы вызываем handleSubmit, который гарантированно
+      // вызовет нашу функцию `handleFormSubmit` с данными.
+      handleSubmit(handleFormSubmit)();
+    }
+  };
+
   return (
-    <Form
-      name="login_form"
-      onFinish={handleSubmit(handleFormSubmit)} // Связываем Ant Design Form с React Hook Form
-      layout="vertical"
-    >
-      {/* Поле Имя пользователя/Email */}
+    // Мы убрали лишний тег <form>. Теперь AntD <Form> - единственный.
+    <Form layout="vertical">
       <Form.Item
         label="Имя пользователя или Email"
         validateStatus={errors.username ? 'error' : ''}
@@ -63,7 +68,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading, error
         />
       </Form.Item>
 
-      {/* Поле Пароль */}
       <Form.Item
         label="Пароль"
         validateStatus={errors.password ? 'error' : ''}
@@ -85,18 +89,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading, error
         />
       </Form.Item>
 
-      {/* Отображение ошибки от сервера */}
       {error && (
         <Form.Item>
           <Alert message={error} type="error" showIcon />
         </Form.Item>
       )}
 
-      {/* Кнопка Войти */}
       <Form.Item>
+        {/*
+          УБИРАЕМ htmlType="submit" и вешаем наш обработчик на onClick.
+          Теперь мы полностью контролируем процесс отправки.
+        */}
         <Button
           type="primary"
-          htmlType="submit"
+          onClick={handleButtonClick} // <-- Используем наш новый обработчик
           loading={isLoading}
           disabled={isButtonDisabled}
           block

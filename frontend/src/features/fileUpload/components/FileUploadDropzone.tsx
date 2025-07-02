@@ -1,91 +1,75 @@
-// frontend/src/features/fileUpload/components/FileUploadDropzone.tsx
+// Файл: frontend/src/features/fileUpload/components/FileUploadDropzone.tsx
+
 import React from 'react';
 import { Upload, message, Typography, theme } from 'antd';
-import type { UploadProps, RcFile } from 'antd/es/upload';
 import { InboxOutlined } from '@ant-design/icons';
+import type { UploadProps, RcFile } from 'antd/es/upload';
 
 const { Dragger } = Upload;
 const { Title, Text } = Typography;
 
-// Определяем интерфейс для пропсов компонента
+// Определяем пропсы для нашего кастомного компонента
 interface FileUploadDropzoneProps {
-    onUploadStart: (files: RcFile[]) => void; // Функция из хука-менеджера
-    acceptedFileTypes?: string[]; // Массив MIME-типов или расширений
+    onUploadStart: (files: RcFile[]) => void;
+    acceptedFileTypes?: string[];
     multiple?: boolean;
     disabled?: boolean;
-    maxFileSize?: number; // Максимальный размер файла в байтах для клиентской валидации
+    maxFileSize?: number; // в байтах
 }
 
-// ИЗМЕНЕНИЕ 1: Мы меняем экспорт на именованный (named export)
-// Это решает ошибку, которую вы видите на скриншоте.
-export const FileUploadDropzone: React.FC<FileUploadDropzoneProps> = ({
+const FileUploadDropzone: React.FC<FileUploadDropzoneProps> = ({
     onUploadStart,
-    acceptedFileTypes = ['.xlsx', '.xls', '.pdf'], // Значения по умолчанию для MVP
+    acceptedFileTypes = ['.xlsx', '.xls', '.pdf'],
     multiple = true,
     disabled = false,
-    maxFileSize, // например, 5 * 1024 * 1024 для 5MB
+    maxFileSize,
 }) => {
-    const { token } = theme.useToken(); // Для стилизации, если нужно
+    const { token } = theme.useToken();
 
-    const draggerProps: UploadProps = {
+    const props: UploadProps = {
         name: 'files',
         multiple: multiple,
         accept: acceptedFileTypes.join(','),
         disabled: disabled,
-
-        // Важно: мы не хотим, чтобы Ant Design Upload сам отправлял файлы.
-        // Мы перехватываем файлы в beforeUpload и передаем их в onUploadStart.
+        // Мы используем beforeUpload для перехвата файлов, т.к. управляем загрузкой извне
         beforeUpload: (file, fileList) => {
-            // Валидация типа файла
-            const isValidType = acceptedFileTypes.some(type =>
-                file.name.toLowerCase().endsWith(type.toLowerCase()) || file.type === type
-            );
-            if (!isValidType) {
-                message.error(`${file.name}: Неподдерживаемый тип файла.`);
-                return Upload.LIST_IGNORE;
-            }
-
             // Валидация размера файла
             if (maxFileSize && file.size > maxFileSize) {
-                message.error(
-                    `${file.name}: Файл слишком большой (максимум: ${Math.round(maxFileSize / 1024 / 1024)}MB).`
-                );
-                return Upload.LIST_IGNORE;
+                message.error(`${file.name}: Файл слишком большой (максимум: ${maxFileSize / 1024 / 1024} MB).`);
+                return Upload.LIST_IGNORE; // Отменяем загрузку этого файла
             }
             
-            // ИЗМЕНЕНИЕ 2: Упрощаем логику. Вызываем onUploadStart для всего списка выбранных файлов.
-            // Это более надежно, чем отслеживать первый файл.
-            // onUploadStart будет вызван один раз для группы файлов.
-            onUploadStart(fileList);
+            // Если это первый файл в пакете, вызываем onUploadStart со всем списком
+            if (file === fileList[0]) {
+                onUploadStart(fileList);
+            }
             
-            // Всегда возвращаем false, чтобы предотвратить автоматическую загрузку от Ant Design.
-            // Мы полностью управляем процессом загрузки сами.
+            // Возвращаем false, чтобы предотвратить автоматическую загрузку от Ant Design
             return false;
         },
-        showUploadList: false, // Мы используем наш кастомный FileUploadList для отображения статуса
+        // Мы не хотим показывать стандартный список файлов Ant Design
+        showUploadList: false,
     };
 
-    // Стили для наглядности вынесены в константу
     const draggerStyle: React.CSSProperties = {
-        background: disabled ? token.colorBgContainerDisabled : token.colorBgContainer,
+        background: token.colorBgContainerDisabled,
         border: `2px dashed ${token.colorBorder}`,
         padding: '40px 20px',
+        textAlign: 'center',
         opacity: disabled ? 0.5 : 1,
-        transition: 'opacity 0.3s',
     };
 
     return (
-        <Dragger {...draggerProps} style={draggerStyle}>
+        <Dragger {...props} style={draggerStyle}>
             <p className="ant-upload-drag-icon">
-                <InboxOutlined style={{ fontSize: '48px', color: token.colorPrimary }} />
+                <InboxOutlined />
             </p>
-            <Title level={4} style={{ marginBottom: 4 }}>
-                Нажмите или перетащите файлы для загрузки
-            </Title>
-            <Text type="secondary">
-                Поддерживаются файлы Excel (.xlsx, .xls) и PDF (.pdf).
-                {maxFileSize && ` Максимальный размер файла: ${Math.round(maxFileSize / 1024 / 1024)}MB.`}
-            </Text>
+            <Title level={4} style={{ marginBottom: 4 }}>Нажмите или перетащите файлы для загрузки</Title>
+            <Text type="secondary">Поддерживаются файлы Excel (.xlsx, .xls) и PDF (.pdf).</Text>
+            {maxFileSize && <Text type="secondary" style={{ display: 'block' }}>Максимальный размер файла: {maxFileSize / 1024 / 1024} MB</Text>}
         </Dragger>
     );
 };
+
+// === ГЛАВНОЕ ИЗМЕНЕНИЕ: Добавляем экспорт по умолчанию ===
+export default FileUploadDropzone;

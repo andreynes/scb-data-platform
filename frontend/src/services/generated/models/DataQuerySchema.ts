@@ -7,7 +7,7 @@ import type { FilterCondition } from './FilterCondition';
 import type { PaginationParams } from './PaginationParams';
 import type { SortRule } from './SortRule';
 export type DataQuerySchema = {
-    document_id?: (string | null);
+    document_id: string;
     filters?: (Array<FilterCondition> | null);
     aggregations?: (Array<AggregationRule> | null);
     columns?: (Array<string> | null);

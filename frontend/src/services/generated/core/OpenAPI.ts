@@ -2,30 +2,26 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-
-// --- ИМПОРТИРУЕМ ВАШ НАСТРОЕННЫЙ КЛИЕНТ ---
-import apiClient from '../../apiClient'; 
 import type { ApiRequestOptions } from './ApiRequestOptions';
 
 type Resolver<T> = (options: ApiRequestOptions) => Promise<T>;
 type Headers = Record<string, string>;
 
 export type OpenAPIConfig = {
-    // --- ДОБАВЛЯЕМ ПОЛЕ ДЛЯ AXIOS-КЛИЕНТА ---
-    CLIENT?: any;
     BASE: string;
     VERSION: string;
-    // ... (остальные поля)
+    WITH_CREDENTIALS: boolean;
+    CREDENTIALS: 'include' | 'omit' | 'same-origin';
+    TOKEN?: string | Resolver<string> | undefined;
+    USERNAME?: string | Resolver<string> | undefined;
+    PASSWORD?: string | Resolver<string> | undefined;
+    HEADERS?: Headers | Resolver<Headers> | undefined;
+    ENCODE_PATH?: ((path: string) => string) | undefined;
 };
 
 export const OpenAPI: OpenAPIConfig = {
-    // --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: УКАЗЫВАЕМ НАШ КЛИЕНТ ---
-    CLIENT: apiClient,
-
-    // BASE URL теперь не нужен, так как он задан в apiClient
-    BASE: '', 
+    BASE: '',
     VERSION: '1.0.0',
-    // ... (остальные поля остаются как есть)
     WITH_CREDENTIALS: false,
     CREDENTIALS: 'include',
     TOKEN: undefined,

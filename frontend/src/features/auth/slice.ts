@@ -1,70 +1,66 @@
-// frontend/src/features/auth/slice.ts
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+// Файл: frontend/src/features/auth/slice.ts (ФИНАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ)
+
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import * as authApi from '../../services/authApi';
-import type { RootState } from '../../app/store';
-import type { UserSchema, TokenSchema, LoginFormData } from './types';
+// ===== ИМПОРТИРУЕМ OpenAPI для управления токеном =====
+import { OpenAPI } from '../../services/generated/core/OpenAPI';
+import type { LoginCredentials } from '../../services/generated';
+import type { UserSchema, TokenSchema } from '../../schemas/user_schemas';
 
 interface AuthState {
-  user: UserSchema | null;
-  token: string | null;
-  status: 'idle' | 'loading' | 'succeeded' | 'failed';
-  error: string | null;
+    user: UserSchema | null;
+    status: 'idle' | 'loading' | 'succeeded' | 'failed';
+    error: string | null;
+}
+
+// Устанавливаем токен при первоначальной загрузке, если он есть в localStorage
+const initialToken = localStorage.getItem('authToken');
+if (initialToken) {
+  OpenAPI.TOKEN = initialToken;
 }
 
 const initialState: AuthState = {
-  user: null,
-  token: localStorage.getItem('authToken'),
-  status: 'idle',
-  error: null,
+    user: null,
+    status: 'idle',
+    error: null,
 };
 
-// --- ИЗМЕНЕНИЕ 1: fetchUserMe теперь может принимать токен как аргумент ---
-export const fetchUserMe = createAsyncThunk<
-  UserSchema,
-  string | undefined, // Аргумент: опциональный токен
-  { rejectValue: string }
->(
-  'auth/fetchUserMe',
-  async (token, { getState, rejectWithValue }) => {
+export const loginUser = createAsyncThunk<UserSchema, LoginCredentials, { rejectValue: string }>(
+  'auth/loginUser',
+  async (credentials, { rejectWithValue }) => {
     try {
-      // Если токен не передан, пытаемся взять его из state
-      const tokenToUse = token ?? (getState() as RootState).auth.token;
-      
-      if (!tokenToUse) {
-        return rejectWithValue('No token found');
-      }
-
-      // Передаем токен напрямую в API-функцию
-      const userData = await authApi.fetchCurrentUser(tokenToUse);
+      // 1. Получаем токен
+      const tokenData = await authApi.login(credentials);
+      // 2. Устанавливаем его для будущих запросов
+      OpenAPI.TOKEN = tokenData.access_token;
+      localStorage.setItem('authToken', tokenData.access_token);
+      // 3. Сразу запрашиваем пользователя
+      const userData = await authApi.fetchCurrentUser();
+      // 4. Возвращаем пользователя
       return userData;
     } catch (error: any) {
+      // Чистим все в случае ошибки
+      OpenAPI.TOKEN = undefined;
       localStorage.removeItem('authToken');
-      return rejectWithValue(error.detail || 'Failed to fetch user');
+      return rejectWithValue(error?.response?.data?.detail || 'Неверное имя пользователя или пароль');
     }
   }
 );
 
-
-export const loginUser = createAsyncThunk<
-  { token: string },
-  LoginFormData,
-  { rejectValue: string }
->(
-  'auth/loginUser',
-  async (credentials, { dispatch, rejectWithValue }) => {
+// Этот thunk нам больше не нужен, так как мы получаем юзера сразу после логина.
+// Но оставим его для загрузки при обновлении страницы.
+export const fetchInitialUser = createAsyncThunk<UserSchema, void, { rejectValue: string }>(
+  'auth/fetchInitialUser',
+  async (_, { rejectWithValue }) => {
+    if (!OpenAPI.TOKEN) {
+      return rejectWithValue('No token found');
+    }
     try {
-      const tokenData = await authApi.login(credentials);
-      const accessToken = tokenData.access_token;
-
-      localStorage.setItem('authToken', accessToken);
-      
-      // --- ИЗМЕНЕНИЕ 2: Передаем свежий токен НАПРЯМУЮ в fetchUserMe ---
-      // Это гарантирует, что запрос /me уйдет с правильным токеном
-      await dispatch(fetchUserMe(accessToken)); 
-      
-      return { token: accessToken };
+      return await authApi.fetchCurrentUser();
     } catch (error: any) {
-      return rejectWithValue(error.detail || 'Failed to login');
+      OpenAPI.TOKEN = undefined;
+      localStorage.removeItem('authToken');
+      return rejectWithValue('Could not fetch user');
     }
   }
 );
@@ -74,50 +70,47 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    logout: (state) => {
+    logoutAction: (state) => {
       state.user = null;
-      state.token = null;
       state.status = 'idle';
-      state.error = null;
+      OpenAPI.TOKEN = undefined;
       localStorage.removeItem('authToken');
     },
   },
   extraReducers: (builder) => {
     builder
-      // ... (все остальные extraReducers остаются без изменений)
+      // loginUser
       .addCase(loginUser.pending, (state) => {
         state.status = 'loading';
         state.error = null;
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.token = action.payload.token;
+        state.user = action.payload;
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.payload ?? 'Unknown login error';
+        state.error = action.payload;
       })
-      .addCase(fetchUserMe.pending, (state) => {
+      // fetchInitialUser
+      .addCase(fetchInitialUser.pending, (state) => {
         state.status = 'loading';
       })
-      .addCase(fetchUserMe.fulfilled, (state, action) => {
+      .addCase(fetchInitialUser.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.user = action.payload;
       })
-      .addCase(fetchUserMe.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload ?? 'Unknown error fetching user';
-        state.user = null;
-        state.token = null;
+      .addCase(fetchInitialUser.rejected, (state) => {
+        state.status = 'idle'; // Просто сбрасываем, ошибки не показываем
       });
   },
 });
 
-export const { logout } = authSlice.actions;
+export const { logoutAction } = authSlice.actions;
 
-export const selectCurrentUser = (state: RootState) => state.auth.user;
-export const selectIsAuthenticated = (state: RootState): boolean => !!state.auth.token;
-export const selectAuthIsLoading = (state: RootState) => state.auth.status === 'loading';
-export const selectAuthError = (state: RootState) => state.auth.error;
+export const selectCurrentUser = (state: { auth: AuthState }) => state.auth.user;
+export const selectIsAuthenticated = (state: { auth: AuthState }): boolean => !!state.auth.user;
+export const selectAuthIsLoading = (state: { auth: AuthState }) => state.auth.status === 'loading';
+export const selectAuthError = (state: { auth: AuthState }) => state.auth.error;
 
 export default authSlice.reducer;
