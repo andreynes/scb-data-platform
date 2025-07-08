@@ -1,11 +1,10 @@
 [tool.poetry]
-name = "etl"
+name = "etl_package"
 version = "0.1.0"
-description = "ETL processes for the SCB Data Platform"
+description = "ETL processes for SCB DB"
 authors = ["Andrew Krylov <89921337+andreynes@users.noreply.github.com>"]
-packages = [
-    { include = "etl_src" }, # Указываем, что наш главный пакет - это etl_src
-]
+readme = "README.md"
+packages = [{include = "etl", from = "."}]
 
 [tool.poetry.dependencies]
 python = "~3.10"
@@ -26,6 +25,7 @@ openai = "^1.88.0"
 
 
 [tool.poetry.group.dev.dependencies]
+pytest = "^8.2.0"
 # Сюда можно будет добавить pytest, ruff и т.д. для разработки
 
 [build-system]

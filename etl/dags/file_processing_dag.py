@@ -1,4 +1,4 @@
-# etl/dags/file_processing_dag.py
+# etl/dags/file_processing_dag.py (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 
 import asyncio
 import os
@@ -9,7 +9,8 @@ from airflow.decorators import dag, task
 from airflow.models.param import Param
 from airflow.operators.python import get_current_context
 
-# --- ИМПОРТЫ ---
+# --- ИМПОРТЫ (ИСПРАВЛЕНО) ---
+# Теперь Python будет искать модули относительно /opt/airflow, где лежит папка etl_src
 from etl.src.extract import mongo_extractor
 from etl.src.transform.parsing import parser_orchestrator
 from etl.src.transform.validation import validator as data_validator
@@ -18,7 +19,6 @@ from etl.src.llm.llm_client import LLMClient
 from etl.src.ontology import ontology_loader
 from etl.src.utils.logging_utils import setup_etl_logger
 from etl.src.utils.db_clients import get_mongo_db_client, get_clickhouse_client
-# <<< НОВЫЙ ИМПОРТ >>>
 from etl.src.transform.null_handling import null_handler
 # -----------------
 
@@ -89,6 +89,8 @@ def file_processing():
             
             llm_client_instance = LLMClient(provider=llm_provider, api_key=llm_api_key, model_name=llm_parsing_model)
 
+        # Обрати внимание, что твой orchestrator асинхронный, а DAG выполняется синхронно.
+        # asyncio.run() - это правильный способ запустить async код в sync контексте.
         parsed_data = asyncio.run(
             parser_orchestrator.parse_document_content(
                 document_metadata=document_metadata,
@@ -129,7 +131,6 @@ def file_processing():
         parsing_result["validated_data"] = validated_data
         return parsing_result
     
-    # <<< НАЧАЛО НОВОЙ ЗАДАЧИ >>>
     @task
     def handle_nulls(validation_result: dict) -> dict:
         """Обрабатывает семантику NULL-значений в данных после валидации."""
@@ -147,12 +148,10 @@ def file_processing():
         )
         validation_result["processed_data"] = processed_data
         return validation_result
-    # <<< КОНЕЦ НОВОЙ ЗАДАЧИ >>>
 
     @task
-    def load_to_warehouse(null_handling_result: dict): # <<< ИЗМЕНЕН ВХОДНОЙ ПАРАМЕТР
+    def load_to_warehouse(null_handling_result: dict):
         """Загружает валидированные и обработанные данные в ClickHouse и обновляет статус в MongoDB."""
-        # <<< ИЗМЕНЕНИЕ: БЕРЕМ ДАННЫЕ ПОСЛЕ ОБРАБОТКИ NULL >>>
         data_to_load = null_handling_result.get("processed_data") 
         document_id = null_handling_result["document_id"]
         ontology_schema = null_handling_result["ontology_schema"]
@@ -179,12 +178,12 @@ def file_processing():
             mongo_updater.update_processing_status_sync(document_id, "Error", error_message=str(e), db_client=mongo_db)
             raise
 
-    # --- ОБНОВЛЕНИЕ ПОСЛЕДОВАТЕЛЬНОСТИ ВЫПОЛНЕНИЯ ---
+    # --- Последовательность выполнения ---
     doc_info = get_document_info()
     parsing_result = parse_data(doc_info)
     validated_result = validate_data(parsing_result)
-    null_result = handle_nulls(validated_result) # <<< ДОБАВЛЕН ВЫЗОВ НОВОЙ ЗАДАЧИ
-    load_to_warehouse(null_result) # <<< ТЕПЕРЬ ПРИНИМАЕТ РЕЗУЛЬТАТ ОБРАБОТКИ NULL
+    null_result = handle_nulls(validated_result)
+    load_to_warehouse(null_result)
 
 # Создаем экземпляр DAG
 file_processing_dag = file_processing()

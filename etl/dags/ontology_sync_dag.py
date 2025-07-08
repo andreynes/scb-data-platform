@@ -14,7 +14,7 @@ from airflow.models.param import Param # <--- ДОБАВЛЕНО: Для опр�
 sys.path.append('/opt/airflow') 
 
 # Теперь можно импортировать наши модули
-from etl_src.ontology import ontology_parser, ontology_updater
+from etl.src.ontology import ontology_parser, ontology_updater
 from pymongo import MongoClient
 
 # Получаем логгер
