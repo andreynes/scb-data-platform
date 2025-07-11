@@ -1,11 +1,35 @@
+# Используем якоря YAML для переиспользования общих секций
+x-airflow-build: &airflow-build
+  build:
+    context: ../..
+    dockerfile: ./infra/docker/etl/Dockerfile
+
+x-airflow-common-env: &airflow-common-env
+  AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/1
+  AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  # КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Указываем на папку с исходным кодом
+  PYTHONPATH: /opt/airflow
+
+x-airflow-volumes: &airflow-volumes
+  # Монтируем папку с DAG'ами в стандартную директорию Airflow
+  - ../../etl/dags:/opt/airflow/dags
+  # Монтируем папку с исходным кодом, чтобы DAG'и могли его импортировать
+  - ../../etl/src:/opt/airflow/src
+  # Оставляем том для логов
+  - airflow_logs:/opt/airflow/logs
+
 services:
-  # ... секции mongo, clickhouse, backend, frontend остаются БЕЗ ИЗМЕНЕНИЙ ...
+  # --- Базы данных ---
   mongo:
     image: mongo:latest
     container_name: scb_mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     ports: ["27017:27017"]
     volumes: [mongo_data:/data/db]
-    env_file: [./.env]
     restart: always
     healthcheck: { test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"], interval: 10s, timeout: 5s, retries: 5 }
     networks: [scb_network]
@@ -13,22 +37,56 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     container_name: scb_clickhouse
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
     ports: ["8123:8123", "9000:9000"]
     volumes: [clickhouse_data:/var/lib/clickhouse]
-    env_file: [./.env]
     restart: always
     ulimits: { nofile: { soft: 262144, hard: 262144 } }
     healthcheck: { test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"], interval: 10s, timeout: 5s, retries: 5 }
     networks: [scb_network]
 
+  postgres:
+    image: postgres:13
+    container_name: scb_airflow_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    restart: always
+    volumes: [airflow_postgres_data:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"], interval: 10s, timeout: 5s, retries: 5 }
+    networks: [scb_network]
+
+  redis:
+    image: redis:latest
+    container_name: scb_airflow_redis
+    restart: always
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 10s, timeout: 5s, retries: 5 }
+    networks: [scb_network]
+
+  # --- Основные приложения ---
   backend:
-    build: { context: ../.., dockerfile: ./infra/docker/backend/Dockerfile }
+    build:
+      context: ../..
+      dockerfile: ./infra/docker/backend/Dockerfile
     container_name: scb_backend
     ports: ["8000:8000"]
     volumes: ["../../backend:/app"]
-    env_file: [./.env]
-    command: poetry run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    depends_on: { mongo: { condition: service_healthy }, clickhouse: { condition: service_healthy }, airflow-webserver: { condition: service_healthy } }
+    working_dir: /app
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      MONGO_DB_URL: ${MONGO_DB_URL}
+      MONGO_DB_NAME: ${MONGO_DB_NAME}
+      CLICKHOUSE_HOST: ${CLICKHOUSE_HOST}
+      CLICKHOUSE_PORT: ${CLICKHOUSE_PORT}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on: { mongo: { condition: service_healthy }, clickhouse: { condition: service_healthy } }
     restart: always
     networks: [scb_network]
 
@@ -43,94 +101,50 @@ services:
     depends_on: [backend]
     networks: [scb_network]
 
-  # --- Airflow Services ---
-  postgres:
-    image: postgres:13
-    container_name: scb_airflow_postgres
-    restart: always
-    env_file: [./.env]
-    volumes: [airflow_postgres_data:/var/lib/postgresql/data]
-    healthcheck: { test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"], interval: 10s, timeout: 5s, retries: 5 }
-    networks: [scb_network]
-
-  redis:
-    image: redis:latest
-    container_name: scb_airflow_redis
-    restart: always
-    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 10s, timeout: 5s, retries: 5 }
-    networks: [scb_network]
-  
+  # --- Сервисы Airflow ---
   airflow-init:
-    build: { context: ../.., dockerfile: ./infra/docker/etl/Dockerfile }
+    <<: *airflow-build
     container_name: scb_airflow_init
     profiles: ["setup"]
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
+    environment: *airflow-common-env
+    entrypoint: /bin/bash
+    command: ["-c", "airflow db migrate && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true"]
     depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
-    command: -c "airflow db migrate && (airflow users create --username airflow --password airflow --firstname Airflow --lastname Admin --role Admin --email airflow@example.com || true)"
     networks: [scb_network]
     
   airflow-webserver:
-    build: { context: ../.., dockerfile: ./infra/docker/etl/Dockerfile }
+    <<: *airflow-build
     container_name: scb_airflow_webserver
     restart: always
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
-      - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
-      - AIRFLOW__CELERY__RESULT_BACKEND=${AIRFLOW__CELERY__RESULT_BACKEND}
-      - AIRFLOW_UID=${AIRFLOW_UID}
-      - AIRFLOW_GID=${AIRFLOW_GID}
+    environment: 
+      <<: *airflow-common-env
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
     ports: ["8080:8080"]
-    volumes: ["../../etl/dags:/opt/airflow/dags", airflow_logs:/opt/airflow/logs]
-    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+    volumes: *airflow-volumes # <-- ИСПОЛЬЗУЕМ ЯКОРЬ
     command: webserver
     healthcheck: { test: ["CMD-SHELL", "curl --fail http://localhost:8080/health"], interval: 30s, timeout: 30s, retries: 5, start_period: 60s }
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
     networks: [scb_network]
 
   airflow-scheduler:
-    build: { context: ../.., dockerfile: ./infra/docker/etl/Dockerfile }
+    <<: *airflow-build
     container_name: scb_airflow_scheduler
     restart: always
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
-      - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
-      - AIRFLOW__CELERY__RESULT_BACKEND=${AIRFLOW__CELERY__RESULT_BACKEND}
-      - AIRFLOW_UID=${AIRFLOW_UID}
-      - AIRFLOW_GID=${AIRFLOW_GID}
-    volumes: ["../../etl/dags:/opt/airflow/dags", airflow_logs:/opt/airflow/logs]
-    depends_on: { airflow-webserver: { condition: service_healthy } }
+    environment: *airflow-common-env
+    volumes: *airflow-volumes # <-- ИСПОЛЬЗУЕМ ЯКОРЬ
     command: scheduler
+    healthcheck: { test: ["CMD-SHELL", "airflow-health-check"], interval: 10s, timeout: 5s, retries: 5 }
+    depends_on: { airflow-webserver: { condition: service_healthy } }
     networks: [scb_network]
 
   airflow-worker:
-    build: { context: ../.., dockerfile: ./infra/docker/etl/Dockerfile }
+    <<: *airflow-build
     container_name: scb_airflow_worker
     restart: always
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - AIRFLOW__CORE__EXECUTOR=CeleryExecutor
-      - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
-      - AIRFLOW__CELERY__RESULT_BACKEND=${AIRFLOW__CELERY__RESULT_BACKEND}
-      - AIRFLOW_UID=${AIRFLOW_UID}
-      - AIRFLOW_GID=${AIRFLOW_GID}
-    volumes: ["../../etl/dags:/opt/airflow/dags", airflow_logs:/opt/airflow/logs]
-    depends_on: { airflow-scheduler: { condition: service_started } }
+    environment: *airflow-common-env
+    volumes: *airflow-volumes # <-- ИСПОЛЬЗУЕМ ЯКОРЬ
     command: celery worker
+    depends_on: { airflow-scheduler: { condition: service_healthy } }
     networks: [scb_network]
 
 volumes:

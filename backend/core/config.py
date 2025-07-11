@@ -34,7 +34,8 @@ class Settings(BaseSettings):
 
     class Config:
         case_sensitive = True
-        # Pydantic v2 автоматически читает из .env файлов, если python-dotenv установлен
-        # Указание env_file здесь не требуется, когда Docker Compose передает переменные
+        # ЯВНО УКАЗЫВАЕМ ПУТЬ К .ENV ФАЙЛУ ВНУТРИ КОНТЕЙНЕРА
+        env_file = "/app/.env"
+        env_file_encoding = 'utf-8'
 
 settings = Settings()

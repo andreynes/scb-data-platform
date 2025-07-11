@@ -7,7 +7,7 @@ from typing import List
 
 from fastapi import UploadFile
 
-# ИСПРАВЛЕНО: Корректные абсолютные импорты
+# ИСПРАВЛЕНО: Используем правильные относительные импорты
 from clients import airflow_client
 from repositories.data_lake_repo import DataLakeRepo
 from schemas.file_schemas import FileUploadStatusSchema
