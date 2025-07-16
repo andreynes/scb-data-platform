@@ -1,0 +1,9 @@
+NAME                    IMAGE                                 COMMAND                  SERVICE             CREATED             STATUS                          PORTS
+scb_airflow_postgres    postgres:13                           "docker-entrypoint.s…"   postgres            About an hour ago   Up About an hour (healthy)      5432/tcp
+scb_airflow_redis       redis:latest                          "docker-entrypoint.s…"   redis               About an hour ago   Up About an hour (healthy)      6379/tcp
+scb_airflow_scheduler   compose-airflow-scheduler             "/usr/bin/dumb-init …"   airflow-scheduler   About an hour ago   Restarting (1) 56 seconds ago   
+scb_airflow_webserver   compose-airflow-webserver             "/usr/bin/dumb-init …"   airflow-webserver   About an hour ago   Restarting (1) 53 seconds ago   
+scb_backend             compose-backend                       "uvicorn main:app --…"   backend             About an hour ago   Up About an hour                0.0.0.0:8000->8000/tcp
+scb_clickhouse          clickhouse/clickhouse-server:latest   "/entrypoint.sh"         clickhouse          About an hour ago   Up About an hour (healthy)      0.0.0.0:8123->8123/tcp, 0.0.0.0:9000->9000/tcp, 9009/tcp
+scb_frontend            compose-frontend                      "docker-entrypoint.s…"   frontend            About an hour ago   Up About an hour                0.0.0.0:5173->5173/tcp
+scb_mongo               mongo:latest                          "docker-entrypoint.s…"   mongo               About an hour ago   Up About an hour (healthy)      0.0.0.0:27017->27017/tcp

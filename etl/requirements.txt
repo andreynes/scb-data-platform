@@ -1,41 +1,21 @@
-annotated-types
-anyio
-certifi
-cffi
-charset-normalizer
+# --- Core Dependencies for our ETL ---
+# These are the specific packages needed for our dags to function,
+# which are not included in the base Airflow image.
+
+# For connecting to ClickHouse Data Warehouse
 clickhouse-connect
-cryptography
-distro
-dnspython
-et-xmlfile
-exceptiongroup
-h11
-httpcore
-httpx
-idna
-jiter
-lz4
-numpy
-openai
-openpyxl
-pandas
-pdfminer.six
-pdfplumber
-pillow
-pycparser
-pydantic
-pydantic_core
+
+# For connecting to MongoDB Data Lake
 pymongo
-pypdfium2
-python-dateutil
+
+# For parsing source files
+openpyxl
+pdfplumber
+
+# For interacting with Large Language Models (LLM)
+# We will install both for flexibility, as per the architecture design
+openai
+google-generativeai
+
+# For loading environment variables from .env files
 python-dotenv
-pytz
-PyYAML
-six
-sniffio
-tqdm
-typing-inspection
-typing_extensions
-tzdata
-urllib3
-zstandard

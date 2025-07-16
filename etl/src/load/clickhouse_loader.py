@@ -1,7 +1,7 @@
 # etl/src/load/clickhouse_loader.py
 from typing import List, Dict, Any, Optional, Tuple
 from clickhouse_connect.driver import Client as ClickHouseClient # Или другой драйвер, если используется
-from etl.src.utils.logging_utils import setup_etl_logger
+from src.utils.logging_utils import setup_etl_logger
 
 logger = setup_etl_logger(__name__)
 

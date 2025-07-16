@@ -34,8 +34,7 @@ class Settings(BaseSettings):
 
     class Config:
         case_sensitive = True
-        # ЯВНО УКАЗЫВАЕМ ПУТЬ К .ENV ФАЙЛУ ВНУТРИ КОНТЕЙНЕРА
-        env_file = "/app/.env"
+        # УДАЛЕНО: env_file = "/app/.env"
         env_file_encoding = 'utf-8'
 
 settings = Settings()

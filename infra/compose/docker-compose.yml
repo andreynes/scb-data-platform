@@ -1,4 +1,4 @@
-# Используем якоря YAML для переиспользования общих секций
+# --- Якоря для переиспользования ---
 x-airflow-build: &airflow-build
   build:
     context: ../..
@@ -9,15 +9,10 @@ x-airflow-common-env: &airflow-common-env
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
   AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/1
   AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-  # КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Указываем на папку с исходным кодом
-  PYTHONPATH: /opt/airflow
 
 x-airflow-volumes: &airflow-volumes
-  # Монтируем папку с DAG'ами в стандартную директорию Airflow
   - ../../etl/dags:/opt/airflow/dags
-  # Монтируем папку с исходным кодом, чтобы DAG'и могли его импортировать
-  - ../../etl/src:/opt/airflow/src
-  # Оставляем том для логов
+  - ../../etl/src:/opt/airflow/src 
   - airflow_logs:/opt/airflow/logs
 
 services:
@@ -25,9 +20,7 @@ services:
   mongo:
     image: mongo:latest
     container_name: scb_mongo
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    env_file: ./.env
     ports: ["27017:27017"]
     volumes: [mongo_data:/data/db]
     restart: always
@@ -37,10 +30,7 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     container_name: scb_clickhouse
-    environment:
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+    env_file: ./.env
     ports: ["8123:8123", "9000:9000"]
     volumes: [clickhouse_data:/var/lib/clickhouse]
     restart: always
@@ -51,10 +41,7 @@ services:
   postgres:
     image: postgres:13
     container_name: scb_airflow_postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+    env_file: ./.env
     restart: always
     volumes: [airflow_postgres_data:/var/lib/postgresql/data]
     healthcheck: { test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"], interval: 10s, timeout: 5s, retries: 5 }
@@ -67,6 +54,21 @@ services:
     healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 10s, timeout: 5s, retries: 5 }
     networks: [scb_network]
 
+  # --- Сервисы Airflow (Инициализация) ---
+  airflow-init:
+    <<: *airflow-build
+    container_name: scb_airflow_init
+    env_file: ./.env
+    environment: *airflow-common-env
+    volumes: *airflow-volumes
+    entrypoint: /bin/bash
+    command: >-
+      -c "airflow db migrate && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [scb_network]
+
   # --- Основные приложения ---
   backend:
     build:
@@ -75,18 +77,11 @@ services:
     container_name: scb_backend
     ports: ["8000:8000"]
     volumes: ["../../backend:/app"]
-    working_dir: /app
-    environment:
-      SECRET_KEY: ${SECRET_KEY}
-      MONGO_DB_URL: ${MONGO_DB_URL}
-      MONGO_DB_NAME: ${MONGO_DB_NAME}
-      CLICKHOUSE_HOST: ${CLICKHOUSE_HOST}
-      CLICKHOUSE_PORT: ${CLICKHOUSE_PORT}
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
-      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    depends_on: { mongo: { condition: service_healthy }, clickhouse: { condition: service_healthy } }
+    env_file: ./.env
+    # Блок environment и entrypoint/command удалены
+    depends_on:
+      mongo: { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
     restart: always
     networks: [scb_network]
 
@@ -94,57 +89,59 @@ services:
     build: { context: ../.., dockerfile: ./infra/docker/frontend/Dockerfile }
     container_name: scb_frontend
     ports: ["5173:5173"]
-    volumes: ["../../frontend:/app", /app/node_modules]
-    env_file: [./.env]
+    volumes: ["../../frontend:/app", "/app/node_modules"]
+    env_file: ./.env
     command: npm run dev -- --host
     restart: always
     depends_on: [backend]
     networks: [scb_network]
 
-  # --- Сервисы Airflow ---
-  airflow-init:
-    <<: *airflow-build
-    container_name: scb_airflow_init
-    profiles: ["setup"]
-    environment: *airflow-common-env
-    entrypoint: /bin/bash
-    command: ["-c", "airflow db migrate && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com || true"]
-    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
-    networks: [scb_network]
-    
+  # --- Сервисы Airflow (Основные) ---
   airflow-webserver:
     <<: *airflow-build
     container_name: scb_airflow_webserver
     restart: always
+    env_file: ./.env
     environment: 
       <<: *airflow-common-env
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
     ports: ["8080:8080"]
-    volumes: *airflow-volumes # <-- ИСПОЛЬЗУЕМ ЯКОРЬ
+    volumes: *airflow-volumes
     command: webserver
     healthcheck: { test: ["CMD-SHELL", "curl --fail http://localhost:8080/health"], interval: 30s, timeout: 30s, retries: 5, start_period: 60s }
-    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+    depends_on:
+      airflow-init: { condition: service_completed_successfully }
     networks: [scb_network]
 
   airflow-scheduler:
     <<: *airflow-build
     container_name: scb_airflow_scheduler
     restart: always
-    environment: *airflow-common-env
-    volumes: *airflow-volumes # <-- ИСПОЛЬЗУЕМ ЯКОРЬ
+    env_file: ./.env
+    environment: *airflow-common-env # <-- Используйте якорь, если он определен
+    volumes: *airflow-volumes
     command: scheduler
-    healthcheck: { test: ["CMD-SHELL", "airflow-health-check"], interval: 10s, timeout: 5s, retries: 5 }
-    depends_on: { airflow-webserver: { condition: service_healthy } }
+    # ДОБАВЬТЕ ЭТОТ БЛОК
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname $${HOSTNAME}"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 3
+      start_period: 5m
+    depends_on:
+      airflow-init: { condition: service_completed_successfully }
     networks: [scb_network]
 
   airflow-worker:
     <<: *airflow-build
     container_name: scb_airflow_worker
     restart: always
+    env_file: ./.env
     environment: *airflow-common-env
-    volumes: *airflow-volumes # <-- ИСПОЛЬЗУЕМ ЯКОРЬ
+    volumes: *airflow-volumes
     command: celery worker
-    depends_on: { airflow-scheduler: { condition: service_healthy } }
+    depends_on:
+      airflow-scheduler: { condition: service_healthy }
     networks: [scb_network]
 
 volumes:

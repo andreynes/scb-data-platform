@@ -2,9 +2,8 @@
 name = "etl_package"
 version = "0.1.0"
 description = "ETL processes for SCB DB"
-authors = ["Andrew Krylov <89921337+andreynes@users.noreply.github.com>"]
+authors = ["Your Name <you@example.com>"] # Замените на ваши данные
 readme = "README.md"
-packages = [{include = "etl", from = "."}]
 
 [tool.poetry.dependencies]
 python = "~3.10"
@@ -15,18 +14,27 @@ python-dotenv = "^1.0.1"
 pandas = "^2.2.2"
 openpyxl = "^3.1.2"
 pdfplumber = "^0.11.1"
-pydantic = "^2.7.1" # pydantic-settings здесь не нужен, если вы не используете его напрямую в ETL
-                   # pydantic нужен для моделей, которые могут быть общими с backend
+pydantic = "^2.7.1"
 
 # Зависимости для баз данных
 pymongo = {extras = ["srv"], version = "^4.7.2"}
 clickhouse-connect = "^0.8.17"
-openai = "^1.88.0"
 
+# Зависимости для AI
+openai = "^1.30.1"
+google-generativeai = "^0.5.4"
+
+# ВАЖНО: Зависимости для Airflow (провайдеры)
+# Они должны быть здесь, чтобы pip их установил
+apache-airflow-providers-postgres = "^5.10.0"
+apache-airflow-providers-celery = "^3.6.0"
+apache-airflow-providers-redis = "^3.5.0"
+Flask-Session = "^0.8.0" # Явно добавляем недостающий пакет
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"
-# Сюда можно будет добавить pytest, ruff и т.д. для разработки
+pytest-asyncio = "^0.23.7"
+mongomock = "^4.1.2"
 
 [build-system]
 requires = ["poetry-core"]

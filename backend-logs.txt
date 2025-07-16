@@ -1,0 +1,14 @@
+scb_backend  | INFO:     2025-07-15 11:53:52 [core.logging_config] Logging configured with root level: INFO
+scb_backend  | INFO:     2025-07-15 11:53:52 [main] Application configured.
+scb_backend  | INFO:     2025-07-15 11:53:52 [uvicorn.error] Started server process [1]
+scb_backend  | INFO:     2025-07-15 11:53:52 [uvicorn.error] Waiting for application startup.
+scb_backend  | INFO:     2025-07-15 11:53:52 [main] Application startup...
+scb_backend  | INFO:     2025-07-15 11:53:52 [db.session] Connecting to MongoDB...
+scb_backend  | INFO:     2025-07-15 11:53:52 [db.session] Successfully connected to MongoDB.
+scb_backend  | INFO:     2025-07-15 11:53:52 [db.session] Connecting to ClickHouse...
+scb_backend  | INFO:     2025-07-15 11:53:52 [db.session] Successfully connected to ClickHouse.
+scb_backend  | INFO:     2025-07-15 11:53:52 [repositories.user_repo] Initializing UserRepo: creating indexes...
+scb_backend  | INFO:     2025-07-15 11:53:52 [repositories.user_repo] User indexes created successfully.
+scb_backend  | INFO:     2025-07-15 11:53:52 [main] Application startup complete.
+scb_backend  | INFO:     2025-07-15 11:53:52 [uvicorn.error] Application startup complete.
+scb_backend  | INFO:     2025-07-15 11:53:52 [uvicorn.error] Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)

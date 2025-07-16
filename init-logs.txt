@@ -1,0 +1,78 @@
+scb_airflow_init  | DB: postgresql+psycopg2://airflow:***@postgres:5432/airflow
+scb_airflow_init  | Performing upgrade to the metadata database postgresql+psycopg2://airflow:***@postgres:5432/airflow
+scb_airflow_init  | [[34m2025-07-15T11:53:54.114+0000[0m] {[34mmigration.py:[0m211} INFO[0m - Context impl PostgresqlImpl.[0m
+scb_airflow_init  | [[34m2025-07-15T11:53:54.115+0000[0m] {[34mmigration.py:[0m214} INFO[0m - Will assume transactional DDL.[0m
+scb_airflow_init  | [[34m2025-07-15T11:53:54.116+0000[0m] {[34mmigration.py:[0m211} INFO[0m - Context impl PostgresqlImpl.[0m
+scb_airflow_init  | [[34m2025-07-15T11:53:54.116+0000[0m] {[34mmigration.py:[0m214} INFO[0m - Will assume transactional DDL.[0m
+scb_airflow_init  | Traceback (most recent call last):
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/bin/airflow", line 8, in <module>
+scb_airflow_init  |     sys.exit(main())
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/__main__.py", line 57, in main
+scb_airflow_init  |     args.func(args)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/cli/cli_config.py", line 49, in command
+scb_airflow_init  |     return func(*args, **kwargs)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/cli.py", line 114, in wrapper
+scb_airflow_init  |     return f(*args, **kwargs)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/providers_configuration_loader.py", line 55, in wrapped_function
+scb_airflow_init  |     return func(*args, **kwargs)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/cli/commands/db_command.py", line 129, in migratedb
+scb_airflow_init  |     db.upgradedb(
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/session.py", line 79, in wrapper
+scb_airflow_init  |     return func(*args, session=session, **kwargs)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/db.py", line 1611, in upgradedb
+scb_airflow_init  |     initdb(session=session, load_connections=False)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/session.py", line 76, in wrapper
+scb_airflow_init  |     return func(*args, **kwargs)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/db.py", line 733, in initdb
+scb_airflow_init  |     _create_db_from_orm(session=session)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/db.py", line 718, in _create_db_from_orm
+scb_airflow_init  |     _create_flask_session_tbl(engine.url)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/db.py", line 711, in _create_flask_session_tbl
+scb_airflow_init  |     db = _get_flask_db(sql_database_uri)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/db.py", line 694, in _get_flask_db
+scb_airflow_init  |     from airflow.www.session import AirflowDatabaseSessionInterface
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/www/session.py", line 21, in <module>
+scb_airflow_init  |     from flask_session.sessions import SqlAlchemySessionInterface
+scb_airflow_init  | ModuleNotFoundError: No module named 'flask_session.sessions'
+scb_airflow_init  | /bin/bash: line 4: --username: command not found
+scb_airflow_init  | /bin/bash: line 5: --firstname: command not found
+scb_airflow_init  | /bin/bash: line 6: --role: command not found
+scb_airflow_init  | DB: postgresql+psycopg2://airflow:***@postgres:5432/airflow
+scb_airflow_init  | Performing upgrade to the metadata database postgresql+psycopg2://airflow:***@postgres:5432/airflow
+scb_airflow_init  | [[34m2025-07-15T13:13:49.479+0000[0m] {[34mmigration.py:[0m211} INFO[0m - Context impl PostgresqlImpl.[0m
+scb_airflow_init  | [[34m2025-07-15T13:13:49.479+0000[0m] {[34mmigration.py:[0m214} INFO[0m - Will assume transactional DDL.[0m
+scb_airflow_init  | [[34m2025-07-15T13:13:49.480+0000[0m] {[34mmigration.py:[0m211} INFO[0m - Context impl PostgresqlImpl.[0m
+scb_airflow_init  | [[34m2025-07-15T13:13:49.480+0000[0m] {[34mmigration.py:[0m214} INFO[0m - Will assume transactional DDL.[0m
+scb_airflow_init  | Traceback (most recent call last):
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/bin/airflow", line 8, in <module>
+scb_airflow_init  |     sys.exit(main())
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/__main__.py", line 57, in main
+scb_airflow_init  |     args.func(args)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/cli/cli_config.py", line 49, in command
+scb_airflow_init  |     return func(*args, **kwargs)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/cli.py", line 114, in wrapper
+scb_airflow_init  |     return f(*args, **kwargs)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/providers_configuration_loader.py", line 55, in wrapped_function
+scb_airflow_init  |     return func(*args, **kwargs)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/cli/commands/db_command.py", line 129, in migratedb
+scb_airflow_init  |     db.upgradedb(
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/session.py", line 79, in wrapper
+scb_airflow_init  |     return func(*args, session=session, **kwargs)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/db.py", line 1611, in upgradedb
+scb_airflow_init  |     initdb(session=session, load_connections=False)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/session.py", line 76, in wrapper
+scb_airflow_init  |     return func(*args, **kwargs)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/db.py", line 733, in initdb
+scb_airflow_init  |     _create_db_from_orm(session=session)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/db.py", line 718, in _create_db_from_orm
+scb_airflow_init  |     _create_flask_session_tbl(engine.url)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/db.py", line 711, in _create_flask_session_tbl
+scb_airflow_init  |     db = _get_flask_db(sql_database_uri)
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/utils/db.py", line 694, in _get_flask_db
+scb_airflow_init  |     from airflow.www.session import AirflowDatabaseSessionInterface
+scb_airflow_init  |   File "/opt/airflow/etl/.venv/lib/python3.10/site-packages/airflow/www/session.py", line 21, in <module>
+scb_airflow_init  |     from flask_session.sessions import SqlAlchemySessionInterface
+scb_airflow_init  | ModuleNotFoundError: No module named 'flask_session.sessions'
+scb_airflow_init  | /bin/bash: line 4: --username: command not found
+scb_airflow_init  | /bin/bash: line 5: --firstname: command not found
+scb_airflow_init  | /bin/bash: line 6: --role: command not found

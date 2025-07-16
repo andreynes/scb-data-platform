@@ -1,19 +1,20 @@
+# Используем официальный образ Airflow как базовый
 FROM apache/airflow:2.8.1-python3.10
 
-# Устанавливаем только самые необходимые системные зависимости
-USER root
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    build-essential \
-    libffi-dev \
-    python3-dev && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-USER airflow
+# КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Устанавливаем проблемный пакет отдельно и в первую очередь
+# Используем --user, чтобы установить его в домашнюю директорию пользователя airflow, избегая проблем с правами
+RUN pip install --no-cache-dir --user Flask-Session==0.5.0
 
-# Копируем и устанавливаем все зависимости одной командой
-COPY --chown=airflow:airflow etl/requirements.txt /tmp/requirements.txt
-RUN pip install --user --no-cache-dir -r /tmp/requirements.txt
+# Копируем файл с остальными зависимостями
+COPY etl/requirements.txt /requirements.txt
 
-# Копируем весь код ETL
-COPY --chown=airflow:airflow etl /opt/airflow/etl
+# Устанавливаем остальные зависимости
+RUN pip install --no-cache-dir --user -r /requirements.txt
+
+# Копируем наш код
+COPY etl/dags /opt/airflow/dags
+COPY etl/src /opt/airflow/etl_src
+
+# Добавляем путь к --user пакетам и нашему коду в PYTHONPATH
+# Это гарантирует, что Python будет искать модули в правильном месте
+ENV PYTHONPATH="/home/airflow/.local/lib/python3.10/site-packages:/opt/airflow/etl_src:${PYTHONPATH}"
